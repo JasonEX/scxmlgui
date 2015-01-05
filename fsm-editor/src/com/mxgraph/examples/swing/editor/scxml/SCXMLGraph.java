@@ -299,6 +299,7 @@ public class SCXMLGraph extends mxGraph
 			}
 			updateConnectionOfSCXMLEdge((SCXMLEdge) value,source,target,null);
 			if (((SCXMLEdge)value).getOrder()==null) ((SCXMLEdge)value).setOrder(size);
+			
 			Object edge = insertEdge(parent, ((SCXMLEdge)value).getInternalID(), value, source, target, "");
 			setCellStyle(((SCXMLEdge) value).getStyle((mxCell) edge),edge);
 			return edge;

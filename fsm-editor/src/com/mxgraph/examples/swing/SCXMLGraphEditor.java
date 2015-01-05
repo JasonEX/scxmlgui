@@ -3,7 +3,6 @@ package com.mxgraph.examples.swing;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dialog.ModalityType;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
@@ -70,7 +69,6 @@ import org.apache.lucene.store.LockObtainFailedException;
 import com.mxgraph.examples.config.SCXMLConstraints;
 import com.mxgraph.examples.swing.editor.fileimportexport.IImportExport;
 import com.mxgraph.examples.swing.editor.fileimportexport.ImportExportPicker;
-import com.mxgraph.examples.swing.editor.fileimportexport.SCXMLEdge;
 import com.mxgraph.examples.swing.editor.fileimportexport.SCXMLImportExport;
 import com.mxgraph.examples.swing.editor.fileimportexport.SCXMLNode;
 import com.mxgraph.examples.swing.editor.scxml.SCXMLEditorActions;
@@ -970,7 +968,6 @@ public class SCXMLGraphEditor extends JPanel
 	 * @param action
 	 * @return
 	 */
-	@SuppressWarnings("serial")
 	public AbstractActionWrapper bind(String name, final Action a, String iconUrl)
 	{
 		return new AbstractActionWrapper(getGraphComponent(),name, a,(iconUrl != null) ? new ImageIcon(SCXMLGraphEditor.class.getResource(iconUrl)) : null);
@@ -1042,6 +1039,10 @@ public class SCXMLGraphEditor extends JPanel
 	
 	public class SCXMLEditorFrame extends JFrame implements WindowListener {
 
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -5681194423013898620L;
 		private SCXMLGraphEditor editor;
 		
 		public SCXMLEditorFrame(SCXMLGraphEditor e){
@@ -1084,6 +1085,10 @@ public class SCXMLGraphEditor extends JPanel
 	}
 	
 	private class ValidationWarningStatusPane extends JPanel implements ListSelectionListener {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2474405205923305449L;
 		private JList scxmlErrorsList;
 		private final DefaultListModel listModel=new DefaultListModel();
 		private ListCellSelector listSelectorHandler;

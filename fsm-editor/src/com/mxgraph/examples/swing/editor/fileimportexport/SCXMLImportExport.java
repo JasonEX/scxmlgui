@@ -270,6 +270,17 @@ public class SCXMLImportExport implements IImportExport {
 			} else if (name.equals("transition")) {
 				SCXMLEdge edge = addEdge(processEdge(pn,n));
 				addCommentsAndResetCollectorTo(edge);
+				
+				// Patch for sub-FSM compatibility
+				// Yuqian YANG @ LUSIS
+				// 01/05/2015
+				// For sub-FSM transition, add sub-FSM state and exit routine
+				SCXMLNode subFSMNode = getSubFSMNodeFromTransition(n,pn,isParallel,false);
+				if (subFSMNode != null) {
+//					addCommentsAndResetCollectorTo(subFSMNode);
+					SCXMLEdge exitEdge = addEdge(getSubFSMExitEdgeFromTransition(pn,n));
+//					addCommentsAndResetCollectorTo(exitEdge);
+				}
 			} else if (name.equals("final")) {
 				SCXMLNode node = handleSCXMLNode(n,pn,isParallel,false);
 				addCommentsAndResetCollectorTo(node);
@@ -356,6 +367,115 @@ public class SCXMLImportExport implements IImportExport {
 			break;
 		}
 		return root;
+	}
+	
+	
+	// Patch for sub-FSM compatibility
+	// Yuqian YANG @ LUSIS
+	// 01/05/2015
+	// Identify sub-FSM transition by detect "exit" attribute
+	private SCXMLNode getSubFSMNodeFromTransition(Node n, SCXMLNode pn, Boolean isParallel, Boolean isHistory) throws Exception {
+		NamedNodeMap att = n.getAttributes();
+		Node exitAttrNode = att.getNamedItem("exit");
+//		String exitAttr=(exitAttrNode!=null)?StringUtils.removeLeadingAndTrailingSpaces(exitAttrNode.getNodeValue()):"";
+		if (exitAttrNode != null) {
+			Node nodeID = att.getNamedItem("target");
+			String nodeIDString=null,nodeNameString=null;
+			if (nodeID==null) {
+//				if (n.getNodeName().toLowerCase().equals(SCXMLNode.ROOTID.toLowerCase())) {
+//					nodeIDString=SCXMLNode.ROOTID;
+//				} else {
+//					nodeIDString="";
+				throw new Exception("add sub-FSM state from transition fail due to no target" + pn.getID());
+//				}
+			} else {
+				nodeIDString=StringUtils.cleanupSpaces(nodeID.getNodeValue());
+			}
+			Node nodeName = att.getNamedItem("name");
+			nodeNameString=(nodeName==null)?null:StringUtils.cleanupSpaces(nodeName.getNodeValue());
+			
+			Node nodeHistoryType = att.getNamedItem("type");
+			String nodeHistoryTypeString=(nodeHistoryType==null)?"shallow":StringUtils.cleanupSpaces(nodeHistoryType.getNodeValue());
+			SCXMLNode.HISTORYTYPE historyType=null;
+			try {
+				historyType=SCXMLNode.HISTORYTYPE.valueOf(nodeHistoryTypeString.toUpperCase());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			SCXMLNode node=buildAndAddBasicNodeAsChildOf(nodeIDString,nodeNameString,pn,false);
+			if ((!isHistory) || (historyType==null)) {
+				node.setParallel(isParallel);
+				Node isInitial=null;
+				Node isFinal=null;
+				if (((isFinal=att.getNamedItem("final"))!=null) &&
+						(isFinal.getNodeValue().equals("true"))) {
+					node.setFinal(true);
+				}
+				if (((isInitial=att.getNamedItem("initial"))!=null)||
+						((isInitial=att.getNamedItem("initialstate"))!=null)) {
+					String[] initialStates=StringUtils.cleanupSpaces(isInitial.getNodeValue()).split("[\\s]");
+					for (String initialStateID:initialStates) {
+						SCXMLNode in =getNodeFromSCXMLID(initialStateID);
+						if (in==null) in=new SCXMLNode();
+						in.setID(initialStateID);
+						in.setInitial(true);
+						addSCXMLNode(in);
+					}
+				}
+				// set namespace attribute
+				int na=att.getLength();
+				String namespace="";
+				for(int i=0;i<na;i++) {
+					Node a=att.item(i);
+					String name=a.getNodeName().toLowerCase();
+					if (name.startsWith("xmlns")) {
+						namespace+=a.getNodeName()+"=\""+a.getNodeValue()+"\"\n";
+					} else if (name.equals("src")) {
+						setNodeAsOutsourcing(new OutSource(OUTSOURCETYPE.SRC,a.getNodeValue()), node);
+					}
+				}
+				if (!StringUtils.isEmptyString(namespace)) node.setNamespace(namespace);
+			} else {
+				node.setAsHistory(historyType);
+			}
+			// set src attribute
+			return node;
+		}
+		return null;
+	}
+	
+	// Patch for sub-FSM compatibility
+	// Yuqian YANG @ LUSIS
+	// 01/05/2015
+	// Identify sub-FSM transition by detect "exit" attribute
+	private HashMap<String, Object> getSubFSMExitEdgeFromTransition(SCXMLNode pn, Node n) throws Exception {
+		HashMap<String,Object> ret=new HashMap<String, Object>();
+
+		NamedNodeMap att = n.getAttributes();
+		Node targetNode = att.getNamedItem("target");
+		String source=(targetNode!=null)?StringUtils.removeLeadingAndTrailingSpaces(targetNode.getNodeValue()):"";
+		Node exitAttrNode = att.getNamedItem("exit");
+		ArrayList<String> targets=null;
+		if (exitAttrNode!=null)
+			targets=new ArrayList<String>(Arrays.asList(StringUtils.cleanupSpaces(exitAttrNode.getNodeValue()).split("[\\s]")));
+		
+		//event, cond and target attributes
+//		Node condNode = att.getNamedItem("cond");
+//		String cond=(condNode!=null)?StringUtils.removeLeadingAndTrailingSpaces(condNode.getNodeValue()):"";
+//		Node eventNode = att.getNamedItem("event");
+//		String event=(eventNode!=null)?StringUtils.removeLeadingAndTrailingSpaces(eventNode.getNodeValue()):"";
+		//if ((targets!=null) && (targets.size()>1)) throw new Exception("multiple targets not supported.");
+		HashMap<String,String> edgeGeometry=readEdgeGeometry(n);
+		String exe=collectAllChildrenInString(n);
+		// Fix value for now
+		// TODO: might change in the future
+		ret.put(SCXMLEdge.CONDITION,"exit");
+		ret.put(SCXMLEdge.TARGETS,targets);
+		ret.put(SCXMLEdge.SOURCE,source);
+		ret.put(SCXMLEdge.EDGEEXE,exe);
+		ret.put(SCXMLEdge.EDGEGEO,edgeGeometry);
+		
+		return ret;
 	}
 	
 	private SCXMLNode setNodeAsOutsourcing(OutSource source,SCXMLNode parent) {
@@ -996,7 +1116,7 @@ public class SCXMLImportExport implements IImportExport {
 		DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
 		docBuilderFactory.setXIncludeAware(true);
 		docBuilderFactory.setNamespaceAware(true);
-		docBuilderFactory.setValidating(true);
+		//docBuilderFactory.setValidating(true);
 		docBuilderFactory.setAttribute(
 				"http://java.sun.com/xml/jaxp/properties/schemaLanguage", 
 		"http://www.w3.org/2001/XMLSchema");
@@ -1004,7 +1124,8 @@ public class SCXMLImportExport implements IImportExport {
 				"http://java.sun.com/xml/jaxp/properties/schemaSource",
 		"http://www.w3.org/2011/04/SCXML/scxml.xsd");
 		DocumentBuilder docBuilder = docBuilderFactory.newDocumentBuilder();
-		File inp=new File("C:\\Users\\morbini\\Desktop\\scxml-experiments\\ex2.scxml");
+		File inp=new File("C:\\Users\\Y04\\workspace\\gv\\1.scxml");
+		//System.out.print(inp.exists());
 		docBuilder.parse(inp);		
 	}
 }

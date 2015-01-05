@@ -14,7 +14,7 @@ import java.util.Map;
  * Singleton class that acts as a global registry for codecs. See
  * {@link mxCodec} for an example.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings("rawtypes")
 public class mxCodecRegistry
 {
 
@@ -39,7 +39,7 @@ public class mxCodecRegistry
 		addPackage("java.lang");
 		addPackage("java.util");
 
-		register(new mxObjectCodec(new ArrayList()));
+		register(new mxObjectCodec(new ArrayList<Object>()));
 		register(new mxModelCodec());
 		register(new mxCellCodec());
 		register(new mxStylesheetCodec());

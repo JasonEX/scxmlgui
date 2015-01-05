@@ -28,7 +28,7 @@ import com.mxgraph.util.mxUtils;
  * Note: Since booleans are numbers in JavaScript, all boolean values are
  * encoded into 1 for true and 0 for false.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class mxObjectCodec
 {
 
@@ -172,7 +172,7 @@ public class mxObjectCodec
 				if (node != null && node instanceof Element
 						&& ((Element) node).hasAttribute("as"))
 				{
-					obj = new Hashtable();
+					obj = new Hashtable<Object, Object>();
 				}
 			}
 		}
