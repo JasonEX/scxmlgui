@@ -46,9 +46,14 @@ import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxResources;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class SCXMLSearchTool extends JDialog implements ListSelectionListener,
 		WindowListener, ActionListener, DocumentListener {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7931894644935324036L;
 	private static final int defaultNumResults = 1000;
 	private SCXMLSearch search;
 	private SCXMLGraphEditor editor;
@@ -158,6 +163,11 @@ public class SCXMLSearchTool extends JDialog implements ListSelectionListener,
 	}
 
 	class SCXMLSearchrenderer extends JLabel implements ListCellRenderer {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6266626805418347847L;
+
 		public Component getListCellRendererComponent(JList list, Object value, // value
 																				// to
 																				// display

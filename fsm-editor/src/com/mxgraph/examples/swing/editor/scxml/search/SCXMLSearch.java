@@ -37,6 +37,7 @@ import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxEventSource.mxIEventListener;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class SCXMLSearch {
 
 	private static final String INDEXID = "LUCENECELLID";

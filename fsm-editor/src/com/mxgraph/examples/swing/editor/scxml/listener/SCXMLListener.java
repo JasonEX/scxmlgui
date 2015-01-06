@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing.editor.scxml.listener;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
@@ -50,12 +54,18 @@ import com.mxgraph.examples.swing.editor.scxml.SCXMLGraphComponent;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGraphModel;
 import com.mxgraph.model.mxIGraphModel;
-import com.mxgraph.swing.util.CellSelector;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
 
+import fr.lusis.scxml.subfsm.swing.util.CellSelector;
+
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class SCXMLListener extends JDialog implements ListSelectionListener,
 		WindowListener, ActionListener, DocumentListener {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5359129047272675946L;
 	private int status;
 	private static final int STARTED = 0;
 	private static final int STOPPED = 1;
@@ -173,9 +183,13 @@ public class SCXMLListener extends JDialog implements ListSelectionListener,
 	}
 
 	class SCXMLEventRenderer extends JLabel implements ListCellRenderer {
-		public Component getListCellRendererComponent(JList list, Object value, // value
-																				// to
-																				// display
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 7847327378781807906L;
+
+		public Component getListCellRendererComponent(
+				JList list, Object value, // value to display
 				int index, // cell index
 				boolean isSelected, // is the cell selected
 				boolean cellHasFocus) // the list and the cell have the focus
