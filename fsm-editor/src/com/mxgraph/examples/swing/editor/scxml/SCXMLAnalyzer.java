@@ -11,17 +11,17 @@ import org.apache.lucene.analysis.TokenStream;
 public final class SCXMLAnalyzer extends Analyzer {
 
 	Pattern p = Pattern.compile("[a-zA-Z0-9]");
+
 	@Override
 	public TokenStream tokenStream(String field, Reader reader) {
 		return new CharTokenizer(reader) {
-			
+
 			@Override
 			protected boolean isTokenChar(char c) {
-				String s=""+c;
+				String s = "" + c;
 				Matcher m = p.matcher(s);
 				return m.matches();
 			}
 		};
 	}
 }
-

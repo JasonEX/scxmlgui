@@ -22,16 +22,13 @@ import com.mxgraph.util.mxResources;
 public class SCXMLTransferHandler extends mxGraphTransferHandler {
 
 	@Override
-	public boolean canImport(JComponent comp, DataFlavor[] flavors)
-	{
+	public boolean canImport(JComponent comp, DataFlavor[] flavors) {
 		if (super.canImport(comp, flavors))
 			return true;
 		else {
-			for (int i = 0; i < flavors.length; i++)
-			{
+			for (int i = 0; i < flavors.length; i++) {
 				if (flavors[i] != null
-						&& flavors[i].equals(DataFlavor.javaFileListFlavor))
-				{
+						&& flavors[i].equals(DataFlavor.javaFileListFlavor)) {
 					return true;
 				}
 			}
@@ -39,44 +36,47 @@ public class SCXMLTransferHandler extends mxGraphTransferHandler {
 			return false;
 		}
 	}
-	
+
 	@Override
-    public boolean importData(TransferHandler.TransferSupport support) {
+	public boolean importData(TransferHandler.TransferSupport support) {
 		try {
-        Transferable t = support.getTransferable();
-        SCXMLGraphEditor editor = getEditorFromComponent(support.getComponent());
+			Transferable t = support.getTransferable();
+			SCXMLGraphEditor editor = getEditorFromComponent(support
+					.getComponent());
 
-            List<File> l = (List<File>)t.getTransferData(DataFlavor.javaFileListFlavor);
+			List<File> l = (List<File>) t
+					.getTransferData(DataFlavor.javaFileListFlavor);
 
-            int num=l.size();
-            if (num>0) {
-                File f=l.get(0);
-            	if (num>1) {
-            		JOptionPane.showMessageDialog(editor,
-            				"Importing only first file: "+f,
-            				mxResources.get("warning"),
-            				JOptionPane.WARNING_MESSAGE);
-            	}
-            	OpenAction action = new OpenAction(f);
-            	action.actionPerformed(new ActionEvent(editor, 0, "", 0));
-            }
-        } catch (UnsupportedFlavorException e) {
-        	return super.importData(support);
-        } catch (IOException e) {
-            return false;
-        } catch (Exception e) {
-        	e.printStackTrace();
-        }
+			int num = l.size();
+			if (num > 0) {
+				File f = l.get(0);
+				if (num > 1) {
+					JOptionPane.showMessageDialog(editor,
+							"Importing only first file: " + f,
+							mxResources.get("warning"),
+							JOptionPane.WARNING_MESSAGE);
+				}
+				OpenAction action = new OpenAction(f);
+				action.actionPerformed(new ActionEvent(editor, 0, "", 0));
+			}
+		} catch (UnsupportedFlavorException e) {
+			return super.importData(support);
+		} catch (IOException e) {
+			return false;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
-        return true;
-    }
+		return true;
+	}
 
 	public static SCXMLGraphEditor getEditorFromComponent(Component c) {
-		Container p=null;
+		Container p = null;
 		do {
-			if (c instanceof SCXMLGraphEditor) return (SCXMLGraphEditor) c;
-		} while ((c=c.getParent())!=null);
+			if (c instanceof SCXMLGraphEditor)
+				return (SCXMLGraphEditor) c;
+		} while ((c = c.getParent()) != null);
 		return null;
 	}
-	
+
 }

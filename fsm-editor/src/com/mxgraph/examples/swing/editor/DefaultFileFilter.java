@@ -18,8 +18,7 @@ import javax.swing.filechooser.FileFilter;
 /**
  * Filter for use in a {@link JFileChooser}.
  */
-public class DefaultFileFilter extends FileFilter
-{
+public class DefaultFileFilter extends FileFilter {
 
 	/**
 	 * Extension of accepted files.
@@ -39,8 +38,7 @@ public class DefaultFileFilter extends FileFilter
 	 * @param description
 	 *            The description of the file format.
 	 */
-	public DefaultFileFilter(String extension, String description)
-	{
+	public DefaultFileFilter(String extension, String description) {
 		ext = extension.toLowerCase();
 		desc = description;
 	}
@@ -53,8 +51,7 @@ public class DefaultFileFilter extends FileFilter
 	 *            The file to be checked.
 	 * @return Returns true if the file is accepted.
 	 */
-	public boolean accept(File file)
-	{
+	public boolean accept(File file) {
 		return file.isDirectory() || file.getName().toLowerCase().endsWith(ext);
 	}
 
@@ -63,8 +60,7 @@ public class DefaultFileFilter extends FileFilter
 	 * 
 	 * @return Returns the description.
 	 */
-	public String getDescription()
-	{
+	public String getDescription() {
 		return desc;
 	}
 
@@ -73,8 +69,7 @@ public class DefaultFileFilter extends FileFilter
 	 * 
 	 * @return Returns the extension.
 	 */
-	public String getExtension()
-	{
+	public String getExtension() {
 		return ext;
 	}
 
@@ -84,8 +79,7 @@ public class DefaultFileFilter extends FileFilter
 	 * @param extension
 	 *            The extension to set.
 	 */
-	public void setExtension(String extension)
-	{
+	public void setExtension(String extension) {
 		this.ext = extension;
 	}
 
@@ -94,8 +88,7 @@ public class DefaultFileFilter extends FileFilter
 	 * 
 	 * @see ImageIO#getReaderFormatNames()
 	 */
-	public static class ImageFileFilter extends FileFilter
-	{
+	public static class ImageFileFilter extends FileFilter {
 
 		/**
 		 * Holds the accepted file format extensions for images.
@@ -114,8 +107,7 @@ public class DefaultFileFilter extends FileFilter
 		 * @param description
 		 *            The description to use for the file filter.
 		 */
-		public ImageFileFilter(String description)
-		{
+		public ImageFileFilter(String description) {
 			desc = description;
 		}
 
@@ -127,19 +119,15 @@ public class DefaultFileFilter extends FileFilter
 		 *            The file to be checked.
 		 * @return Returns true if the file is accepted.
 		 */
-		public boolean accept(File file)
-		{
-			if (file.isDirectory())
-			{
+		public boolean accept(File file) {
+			if (file.isDirectory()) {
 				return true;
 			}
 
 			String filename = file.toString().toLowerCase();
 
-			for (int j = 0; j < imageFormats.length; j++)
-			{
-				if (filename.endsWith("." + imageFormats[j].toLowerCase()))
-				{
+			for (int j = 0; j < imageFormats.length; j++) {
+				if (filename.endsWith("." + imageFormats[j].toLowerCase())) {
 					return true;
 				}
 			}
@@ -152,8 +140,7 @@ public class DefaultFileFilter extends FileFilter
 		 * 
 		 * @return Returns the description.
 		 */
-		public String getDescription()
-		{
+		public String getDescription() {
 			return desc;
 		}
 
@@ -165,8 +152,7 @@ public class DefaultFileFilter extends FileFilter
 	 * 
 	 * @see ImageIO#getReaderFormatNames()
 	 */
-	public static class EditorFileFilter extends FileFilter
-	{
+	public static class EditorFileFilter extends FileFilter {
 
 		/**
 		 * Description of the File format
@@ -179,8 +165,7 @@ public class DefaultFileFilter extends FileFilter
 		 * @param description
 		 *            The description to use for the filter.
 		 */
-		public EditorFileFilter(String description)
-		{
+		public EditorFileFilter(String description) {
 			desc = description;
 		}
 
@@ -190,10 +175,8 @@ public class DefaultFileFilter extends FileFilter
 		 * 
 		 * @return Returns true if the file is accepted.
 		 */
-		public boolean accept(File file)
-		{
-			if (file.isDirectory())
-			{
+		public boolean accept(File file) {
+			if (file.isDirectory()) {
 				return true;
 			}
 
@@ -207,8 +190,7 @@ public class DefaultFileFilter extends FileFilter
 		 * 
 		 * @return Returns the description.
 		 */
-		public String getDescription()
-		{
+		public String getDescription() {
 			return desc;
 		}
 

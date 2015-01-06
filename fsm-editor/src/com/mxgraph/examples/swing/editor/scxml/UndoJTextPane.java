@@ -27,42 +27,43 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	private static final String newline = "\n";
 
 	@Override
-    public void setSize(Dimension d){
-        if (d.width < getParent().getSize().width)
-            d.width = getParent().getSize().width;
-            super.setSize(d);
-    }
+	public void setSize(Dimension d) {
+		if (d.width < getParent().getSize().width)
+			d.width = getParent().getSize().width;
+		super.setSize(d);
+	}
+
 	@Override
-    public boolean getScrollableTracksViewportWidth()
-    {
-        return false;
-    }
-	public UndoJTextPane(String initText,Document d, MyUndoManager u,EditorKeyboardHandler k) {
+	public boolean getScrollableTracksViewportWidth() {
+		return false;
+	}
+
+	public UndoJTextPane(String initText, Document d, MyUndoManager u,
+			EditorKeyboardHandler k) {
 		super();
 		setPopupMenu(null);
 		k.updateInputMap(getInputMap());
-		doc=d;
-		undo=u;
-		if (doc==null) {
-			doc=getDocument();
-			//Put the initial text into the text pane.
+		doc = d;
+		undo = u;
+		if (doc == null) {
+			doc = getDocument();
+			// Put the initial text into the text pane.
 			initDocument(initText);
-			//Start watching for undoable edits and caret changes.
+			// Start watching for undoable edits and caret changes.
 			doc.addUndoableEditListener(new MyUndoableEditListener());
 		} else {
 			setDocument(doc);
 		}
 		setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_XML);
-		if (undo==null)
-			undo=new MyUndoManager();
+		if (undo == null)
+			undo = new MyUndoManager();
 
-		undoAction=new UndoAction();
-		redoAction=new RedoAction();
+		undoAction = new UndoAction();
+		redoAction = new RedoAction();
 	}
 
-	//This one listens for edits that can be undone.
-	protected class MyUndoableEditListener
-	implements UndoableEditListener {
+	// This one listens for edits that can be undone.
+	protected class MyUndoableEditListener implements UndoableEditListener {
 		public void undoableEditHappened(UndoableEditEvent e) {
 			if (e.getEdit().isSignificant()) {
 				undo.addEdit(e.getEdit());
@@ -73,11 +74,12 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	}
 
 	protected void initDocument(String init) {
-		if (init!=null) {
-			String initString[] =init.split("\n");
+		if (init != null) {
+			String initString[] = init.split("\n");
 			try {
-				for (int i = 0; i < initString.length; i ++) {
-					doc.insertString(doc.getLength(), initString[i] + newline,null);
+				for (int i = 0; i < initString.length; i++) {
+					doc.insertString(doc.getLength(), initString[i] + newline,
+							null);
 				}
 			} catch (BadLocationException ble) {
 				System.err.println("Couldn't insert initial text.");
@@ -86,23 +88,25 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	}
 
 	public class UndoAction extends AbstractAction {
-		private Action externalAction=null;
+		private Action externalAction = null;
 
 		public UndoAction() {
 			super("Undo");
 		}
 
 		public void setExternalAction(Action ea) {
-			externalAction=ea;
+			externalAction = ea;
 			externalAction.setEnabled(undo.canRedo());
 		}
+
 		public Action getExternalAction() {
 			return externalAction;
 		}
-		
+
 		public void actionPerformed(ActionEvent e) {
 			try {
-				if (undo.canUndo()) undo.undo();
+				if (undo.canUndo())
+					undo.undo();
 			} catch (CannotUndoException ex) {
 				ex.printStackTrace();
 			}
@@ -116,23 +120,25 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	}
 
 	public class RedoAction extends AbstractAction {
-		private Action externalAction=null;
+		private Action externalAction = null;
 
 		public RedoAction() {
 			super("Redo");
 		}
 
 		public void setExternalAction(Action ea) {
-			externalAction=ea;
+			externalAction = ea;
 			externalAction.setEnabled(undo.canRedo());
 		}
+
 		public Action getExternalAction() {
 			return externalAction;
 		}
 
 		public void actionPerformed(ActionEvent e) {
 			try {
-				if (undo.canRedo()) undo.redo();
+				if (undo.canRedo())
+					undo.redo();
 			} catch (CannotRedoException ex) {
 				ex.printStackTrace();
 			}
@@ -148,9 +154,11 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	public MyUndoManager getUndoManager() {
 		return undo;
 	}
+
 	public UndoAction getUndoAction() {
 		return undoAction;
 	}
+
 	public RedoAction getRedoAction() {
 		return redoAction;
 	}

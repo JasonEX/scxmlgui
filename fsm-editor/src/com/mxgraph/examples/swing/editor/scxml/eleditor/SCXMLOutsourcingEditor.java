@@ -33,104 +33,111 @@ import com.mxgraph.examples.swing.editor.scxml.UndoJTextField;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.util.mxResources;
 
-public class SCXMLOutsourcingEditor extends SCXMLElementEditor implements ActionListener {
+public class SCXMLOutsourcingEditor extends SCXMLElementEditor implements
+		ActionListener {
 	private static final long serialVersionUID = 5819456701848767139L;
 	private UndoJTextField undoTextField;
 	private MyUndoManager undo;
 	private Document doc;
-    private SCXMLNode node;
-	private JRadioButton srcButton,xincludeButton;
-    
-    public SCXMLOutsourcingEditor(JFrame parent,SCXMLGraphEditor editor, mxCell nn, Point pos) throws Exception {
-    	super(parent,editor,nn);
-    	super.remove(idButton);
-    	setModal(true);
-        setTitle(mxResources.get("titleOutsourceEditor"));
-        setLocation(pos);
+	private SCXMLNode node;
+	private JRadioButton srcButton, xincludeButton;
 
-        DocumentChangeListener changeListener = new DocumentChangeListener(editor);
+	public SCXMLOutsourcingEditor(JFrame parent, SCXMLGraphEditor editor,
+			mxCell nn, Point pos) throws Exception {
+		super(parent, editor, nn);
+		super.remove(idButton);
+		setModal(true);
+		setTitle(mxResources.get("titleOutsourceEditor"));
+		setLocation(pos);
 
-        tabbedPane = new JTabbedPane();
+		DocumentChangeListener changeListener = new DocumentChangeListener(
+				editor);
 
-        node=(SCXMLNode) nn.getValue();
-        undo=node.getSRCUndoManager();
-        doc=node.getSRCDoc();
-        // undo and doc must be both either null or not null.
-        assert(!((undo==null) ^ (doc==null)));
-        undoTextField=new UndoJTextField(node.getOutsourcedLocation(), doc, undo);
-        if (doc==null) {
-        	node.setSRCDoc(doc=undoTextField.getDocument());
-        	node.setSRCUndoManager(undo=undoTextField.getUndoManager());
-        }
-        doc.addDocumentListener(changeListener);
-        // configure the undo text pane.
-        undoTextField.setCaretPosition(0);
-        undoTextField.setMargin(new Insets(5,5,5,5));
+		tabbedPane = new JTabbedPane();
 
-        JScrollPane scrollPane = new JScrollPane(undoTextField);
-        scrollPane.setPreferredSize(new Dimension(400, 200));
-        undoTextField.setScrollPane(scrollPane);
-        
-        srcButton = new JRadioButton(mxResources.get("SCXMLsrc"));
-        srcButton.setActionCommand(mxResources.get("SCXMLsrc"));
-        srcButton.setSelected(node.isOutsourcedNodeUsingSRC());
+		node = (SCXMLNode) nn.getValue();
+		undo = node.getSRCUndoManager();
+		doc = node.getSRCDoc();
+		// undo and doc must be both either null or not null.
+		assert (!((undo == null) ^ (doc == null)));
+		undoTextField = new UndoJTextField(node.getOutsourcedLocation(), doc,
+				undo);
+		if (doc == null) {
+			node.setSRCDoc(doc = undoTextField.getDocument());
+			node.setSRCUndoManager(undo = undoTextField.getUndoManager());
+		}
+		doc.addDocumentListener(changeListener);
+		// configure the undo text pane.
+		undoTextField.setCaretPosition(0);
+		undoTextField.setMargin(new Insets(5, 5, 5, 5));
 
-        xincludeButton = new JRadioButton(mxResources.get("SCXMLxinclude"));
-        xincludeButton.setActionCommand(mxResources.get("SCXMLxinclude"));
-        xincludeButton.setSelected(node.isOutsourcedNodeUsingXInclude());
+		JScrollPane scrollPane = new JScrollPane(undoTextField);
+		scrollPane.setPreferredSize(new Dimension(400, 200));
+		undoTextField.setScrollPane(scrollPane);
 
-        ButtonGroup buttonGroup = new ButtonGroup();
-        buttonGroup.add(srcButton);
-        buttonGroup.add(xincludeButton);
+		srcButton = new JRadioButton(mxResources.get("SCXMLsrc"));
+		srcButton.setActionCommand(mxResources.get("SCXMLsrc"));
+		srcButton.setSelected(node.isOutsourcedNodeUsingSRC());
 
-        srcButton.addActionListener(this);
-        xincludeButton.addActionListener(this);
+		xincludeButton = new JRadioButton(mxResources.get("SCXMLxinclude"));
+		xincludeButton.setActionCommand(mxResources.get("SCXMLxinclude"));
+		xincludeButton.setSelected(node.isOutsourcedNodeUsingXInclude());
 
-        tabbedPane.addTab(mxResources.get("outsourceTAB"), scrollPane);
-        tabbedPane.setSelectedIndex(0);
-        
-		JPanel contentPane=new JPanel();
+		ButtonGroup buttonGroup = new ButtonGroup();
+		buttonGroup.add(srcButton);
+		buttonGroup.add(xincludeButton);
+
+		srcButton.addActionListener(this);
+		xincludeButton.addActionListener(this);
+
+		tabbedPane.addTab(mxResources.get("outsourceTAB"), scrollPane);
+		tabbedPane.setSelectedIndex(0);
+
+		JPanel contentPane = new JPanel();
 		contentPane.setLayout(new GridBagLayout());
 
-		//Add Components to this panel.
-        GridBagConstraints c = new GridBagConstraints();
-        c.gridwidth = GridBagConstraints.REMAINDER;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        contentPane.add(tabbedPane, c);
+		// Add Components to this panel.
+		GridBagConstraints c = new GridBagConstraints();
+		c.gridwidth = GridBagConstraints.REMAINDER;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		contentPane.add(tabbedPane, c);
 
-        contentPane.add(srcButton);
-        contentPane.add(xincludeButton);
-        
-        updateActionTable(tabbedPane,actions);
-        
-        //Add the components.
-        getContentPane().add(contentPane, BorderLayout.CENTER);
+		contentPane.add(srcButton);
+		contentPane.add(xincludeButton);
 
-        //Set up the menu bar.
-        //actions=createActionTable(textPane);
-        JMenu editMenu=createEditMenu();
-        JMenuBar mb = new JMenuBar();
-        mb.add(editMenu);
-        setJMenuBar(mb);
-        
-		//Display the window.
+		updateActionTable(tabbedPane, actions);
+
+		// Add the components.
+		getContentPane().add(contentPane, BorderLayout.CENTER);
+
+		// Set up the menu bar.
+		// actions=createActionTable(textPane);
+		JMenu editMenu = createEditMenu();
+		JMenuBar mb = new JMenuBar();
+		mb.add(editMenu);
+		setJMenuBar(mb);
+
+		// Display the window.
 		pack();
 		setVisible(true);
-		
+
 		SCXMLElementEditor.focusOnTextPanel(tabbedPane.getSelectedComponent());
-    }
+	}
+
 	public class CloseAction extends AbstractAction {
 		public void actionPerformed(ActionEvent e) {
 			dispose();
 		}
 	}
+
 	public void selectRadioButtonForType() {
 		srcButton.setSelected(node.isOutsourcedNodeUsingSRC());
 		xincludeButton.setSelected(node.isOutsourcedNodeUsingXInclude());
 	}
+
 	@Override
 	public void actionPerformed(ActionEvent a) {
-		String cmd=a.getActionCommand();
+		String cmd = a.getActionCommand();
 		if (cmd.equals(mxResources.get("SCXMLsrc"))) {
 			node.getSRC().setType(OUTSOURCETYPE.SRC);
 			selectRadioButtonForType();
@@ -142,4 +149,3 @@ public class SCXMLOutsourcingEditor extends SCXMLElementEditor implements Action
 		}
 	}
 }
-

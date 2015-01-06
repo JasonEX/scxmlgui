@@ -27,36 +27,37 @@ public class IMGImportExport implements IImportExport {
 	}
 
 	@Override
-	public void read(String from, mxGraphComponent graphComponent,JFileChooser fc, SCXMLConstraints restrictedConstraints) throws Exception {
+	public void read(String from, mxGraphComponent graphComponent,
+			JFileChooser fc, SCXMLConstraints restrictedConstraints)
+			throws Exception {
 	}
 
 	@Override
-	public void write(mxGraphComponent graphComponent, String into) throws Exception {
+	public void write(mxGraphComponent graphComponent, String into)
+			throws Exception {
 		Color bg = null;
 		String ext = into.substring(into.lastIndexOf('.') + 1);
 		if ((!ext.equalsIgnoreCase("gif") && !ext.equalsIgnoreCase("png"))
-				|| JOptionPane.showConfirmDialog(
-						graphComponent, mxResources
-								.get("transparentBackground")) != JOptionPane.YES_OPTION)
-		{
+				|| JOptionPane.showConfirmDialog(graphComponent,
+						mxResources.get("transparentBackground")) != JOptionPane.YES_OPTION) {
 			bg = graphComponent.getBackground();
 		}
-		write(graphComponent,into,ext,bg);
+		write(graphComponent, into, ext, bg);
 	}
-	public void write(mxGraphComponent graphComponent,String into,String format,Color bg) throws Exception {
+
+	public void write(mxGraphComponent graphComponent, String into,
+			String format, Color bg) throws Exception {
 		mxGraph graph = graphComponent.getGraph();
-		BufferedImage image = mxCellRenderer.createBufferedImage(graph, null, 1, bg,
-				graphComponent.isAntiAlias(), null,
+		BufferedImage image = mxCellRenderer.createBufferedImage(graph, null,
+				1, bg, graphComponent.isAntiAlias(), null,
 				graphComponent.getCanvas());
 
-		if (image != null)
-		{
-			if (!ImageIO.write(image,format,new File(into))) {
-				throw new Exception(mxResources.get("invalidImageFormat"+": '"+format+"'"));
+		if (image != null) {
+			if (!ImageIO.write(image, format, new File(into))) {
+				throw new Exception(mxResources.get("invalidImageFormat"
+						+ ": '" + format + "'"));
 			}
-		}
-		else
-		{
+		} else {
 			throw new Exception(mxResources.get("noImageData"));
 		}
 	}
@@ -80,6 +81,6 @@ public class IMGImportExport implements IImportExport {
 	@Override
 	public void clearInternalID2NodesAndSCXMLID2Nodes() {
 		// TODO Auto-generated method stub
-		
+
 	}
 }

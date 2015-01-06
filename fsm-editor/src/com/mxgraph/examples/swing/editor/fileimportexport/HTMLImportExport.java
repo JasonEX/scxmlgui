@@ -23,13 +23,17 @@ public class HTMLImportExport implements IImportExport {
 	}
 
 	@Override
-	public void read(String from, mxGraphComponent graphComponent,JFileChooser fc, SCXMLConstraints restrictedConstraints) throws IOException {
+	public void read(String from, mxGraphComponent graphComponent,
+			JFileChooser fc, SCXMLConstraints restrictedConstraints)
+			throws IOException {
 	}
 
 	@Override
 	public void write(mxGraphComponent from, String into) throws IOException {
-		mxGraph graph=from.getGraph();
-		mxUtils.writeFile(mxUtils.getXml(mxCellRenderer.createHtmlDocument(graph, null, 1, null, null).getDocumentElement()), into);
+		mxGraph graph = from.getGraph();
+		mxUtils.writeFile(
+				mxUtils.getXml(mxCellRenderer.createHtmlDocument(graph, null,
+						1, null, null).getDocumentElement()), into);
 	}
 
 	@Override
@@ -50,7 +54,7 @@ public class HTMLImportExport implements IImportExport {
 	@Override
 	public void clearInternalID2NodesAndSCXMLID2Nodes() {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 }

@@ -29,41 +29,41 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	private static final String newline = "\n";
 
 	@Override
-    public void setSize(Dimension d){
-        if (d.width < getParent().getSize().width)
-            d.width = getParent().getSize().width;
-            super.setSize(d);
-    }
+	public void setSize(Dimension d) {
+		if (d.width < getParent().getSize().width)
+			d.width = getParent().getSize().width;
+		super.setSize(d);
+	}
+
 	@Override
-    public boolean getScrollableTracksViewportWidth()
-    {
-        return false;
-    }
-	public UndoJTextField(String initText,Document d, MyUndoManager u) {
+	public boolean getScrollableTracksViewportWidth() {
+		return false;
+	}
+
+	public UndoJTextField(String initText, Document d, MyUndoManager u) {
 		super();
-		doc=d;
-		undo=u;
-		if (doc==null) {
-			doc=getDocument();
-			//Put the initial text into the text pane.
+		doc = d;
+		undo = u;
+		if (doc == null) {
+			doc = getDocument();
+			// Put the initial text into the text pane.
 			initDocument(initText);
-			//Start watching for undoable edits and caret changes.
+			// Start watching for undoable edits and caret changes.
 			doc.addUndoableEditListener(new MyUndoableEditListener());
 		} else {
 			setDocument(doc);
 		}
-		if (undo==null)
-			undo=new MyUndoManager();
+		if (undo == null)
+			undo = new MyUndoManager();
 
-		undoAction=new UndoAction();
-		redoAction=new RedoAction();
-		
+		undoAction = new UndoAction();
+		redoAction = new RedoAction();
+
 		addCaretListener(this);
 	}
 
-	//This one listens for edits that can be undone.
-	protected class MyUndoableEditListener
-	implements UndoableEditListener {
+	// This one listens for edits that can be undone.
+	protected class MyUndoableEditListener implements UndoableEditListener {
 		public void undoableEditHappened(UndoableEditEvent e) {
 			if (e.getEdit().isSignificant()) {
 				undo.addEdit(e.getEdit());
@@ -74,9 +74,9 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	}
 
 	protected void initDocument(String init) {
-		if (init!=null) {
+		if (init != null) {
 			try {
-				doc.insertString(0,init.replaceAll("\n", " "),null);
+				doc.insertString(0, init.replaceAll("\n", " "), null);
 			} catch (BadLocationException ble) {
 				System.err.println("Couldn't insert initial text.");
 			}
@@ -84,23 +84,25 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	}
 
 	public class UndoAction extends AbstractAction {
-		private Action externalAction=null;
+		private Action externalAction = null;
 
 		public UndoAction() {
 			super("Undo");
 		}
 
 		public void setExternalAction(Action ea) {
-			externalAction=ea;
+			externalAction = ea;
 			externalAction.setEnabled(undo.canRedo());
 		}
+
 		public Action getExternalAction() {
 			return externalAction;
 		}
-		
+
 		public void actionPerformed(ActionEvent e) {
 			try {
-				if (undo.canUndo()) undo.undo();
+				if (undo.canUndo())
+					undo.undo();
 			} catch (CannotUndoException ex) {
 				ex.printStackTrace();
 			}
@@ -114,23 +116,25 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	}
 
 	public class RedoAction extends AbstractAction {
-		private Action externalAction=null;
+		private Action externalAction = null;
 
 		public RedoAction() {
 			super("Redo");
 		}
-		
+
 		public void setExternalAction(Action ea) {
-			externalAction=ea;
+			externalAction = ea;
 			externalAction.setEnabled(undo.canRedo());
 		}
+
 		public Action getExternalAction() {
 			return externalAction;
 		}
 
 		public void actionPerformed(ActionEvent e) {
 			try {
-				if (undo.canRedo()) undo.redo();
+				if (undo.canRedo())
+					undo.redo();
 			} catch (CannotRedoException ex) {
 				ex.printStackTrace();
 			}
@@ -146,27 +150,34 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	public MyUndoManager getUndoManager() {
 		return undo;
 	}
+
 	public UndoAction getUndoAction() {
 		return undoAction;
 	}
+
 	public RedoAction getRedoAction() {
 		return redoAction;
 	}
 
 	public void setScrollPane(JScrollPane scrollPane) {
-		this.scrollPane=scrollPane;
+		this.scrollPane = scrollPane;
 	}
+
 	@Override
 	public void caretUpdate(CaretEvent e) {
-		if (scrollPane!=null) {
+		if (scrollPane != null) {
 			JScrollBar textExtent = scrollPane.getHorizontalScrollBar();
 			try {
 				Rectangle pos = modelToView(e.getDot());
-				if (pos!=null) {
-					if ((pos.x>(textExtent.getValue()+textExtent.getVisibleAmount()-textExtent.getMinimum())) ||
-						(pos.x<(textExtent.getValue()-textExtent.getMinimum()))) {
-						if (getCaretPosition()==0)
-							scrollPane.getHorizontalScrollBar().setValue(textExtent.getMinimum());
+				if (pos != null) {
+					if ((pos.x > (textExtent.getValue()
+							+ textExtent.getVisibleAmount() - textExtent
+								.getMinimum()))
+							|| (pos.x < (textExtent.getValue() - textExtent
+									.getMinimum()))) {
+						if (getCaretPosition() == 0)
+							scrollPane.getHorizontalScrollBar().setValue(
+									textExtent.getMinimum());
 						else
 							scrollPane.getHorizontalScrollBar().setValue(pos.x);
 					}

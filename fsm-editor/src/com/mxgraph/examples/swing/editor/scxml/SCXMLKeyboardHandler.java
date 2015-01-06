@@ -14,34 +14,30 @@ import com.mxgraph.swing.util.mxGraphActions.DeleteAction;
  * @author Administrator
  * 
  */
-public class SCXMLKeyboardHandler extends mxKeyboardHandler
-{
+public class SCXMLKeyboardHandler extends mxKeyboardHandler {
 
 	/**
 	 * 
 	 * @param graphComponent
 	 */
-	public SCXMLKeyboardHandler(mxGraphComponent graphComponent)
-	{
+	public SCXMLKeyboardHandler(mxGraphComponent graphComponent) {
 		super(graphComponent);
 	}
 
 	/**
 	 * Return JTree's input map.
 	 */
-	protected InputMap getInputMap(int condition)
-	{
+	protected InputMap getInputMap(int condition) {
 		InputMap map = super.getInputMap(condition);
 
-		if ((condition == JComponent.WHEN_FOCUSED ) && map != null)
-		{
+		if ((condition == JComponent.WHEN_FOCUSED) && map != null) {
 			map.put(KeyStroke.getKeyStroke("control S"), "save");
 			map.put(KeyStroke.getKeyStroke("control shift S"), "saveAs");
 			map.put(KeyStroke.getKeyStroke("control N"), "new");
 			map.put(KeyStroke.getKeyStroke("control O"), "open");
 			map.put(KeyStroke.getKeyStroke("DELETE"), "delete");
 			map.put(KeyStroke.getKeyStroke("control Z"), "undo");
-			map.put(KeyStroke.getKeyStroke("control Y"), "redo");			
+			map.put(KeyStroke.getKeyStroke("control Y"), "redo");
 			map.put(KeyStroke.getKeyStroke("control shift V"), "selectVertices");
 			map.put(KeyStroke.getKeyStroke("control shift E"), "selectEdges");
 			map.put(KeyStroke.getKeyStroke("control A"), "selectAll");
@@ -57,15 +53,14 @@ public class SCXMLKeyboardHandler extends mxKeyboardHandler
 	/**
 	 * Return the mapping between JTree's input map and JGraph's actions.
 	 */
-	protected ActionMap createActionMap()
-	{
+	protected ActionMap createActionMap() {
 		ActionMap map = super.createActionMap();
 
 		map.put("save", new SCXMLEditorActions.SaveAction(false));
 		map.put("saveAs", new SCXMLEditorActions.SaveAction(true));
 		map.put("new", new SCXMLEditorActions.NewSCXMLAction());
 		map.put("open", new SCXMLEditorActions.OpenAction());
-		map.put("delete",new SCXMLEditorActions.SCXMLDelete());
+		map.put("delete", new SCXMLEditorActions.SCXMLDelete());
 		map.put("undo", new SCXMLEditorActions.HistoryAction(true));
 		map.put("redo", new SCXMLEditorActions.HistoryAction(false));
 		map.put("selectVertices", mxGraphActions.getSelectVerticesAction());

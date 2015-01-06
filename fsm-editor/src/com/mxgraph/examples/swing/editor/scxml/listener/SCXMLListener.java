@@ -54,7 +54,8 @@ import com.mxgraph.swing.util.CellSelector;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
 
-public class SCXMLListener extends JDialog implements ListSelectionListener, WindowListener, ActionListener, DocumentListener {
+public class SCXMLListener extends JDialog implements ListSelectionListener,
+		WindowListener, ActionListener, DocumentListener {
 	private int status;
 	private static final int STARTED = 0;
 	private static final int STOPPED = 1;
@@ -67,7 +68,7 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 	private JScrollPane listScrollPane;
 	private ArrayList<HashSet<mxCell>> highlightedCellsEachInstant;
 
-	private JButton saveButton,loadButton,reloadButton;
+	private JButton saveButton, loadButton, reloadButton;
 	private JButton startStopButton;
 	private JTextField port;
 
@@ -77,62 +78,65 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 	private SCXMLGraphComponent graphComponent;
 	private mxIGraphModel model;
 	private SCXMLGraphEditor editor;
-	
+
 	private CellSelector cellHighlighter;
 
 	public SCXMLListener(JFrame parent, SCXMLGraphEditor editor) {
-		super(parent,"SCXML Listener");
-		highlightedCellsEachInstant=new ArrayList<HashSet<mxCell>>();
-		
-		graphComponent=editor.getGraphComponent();
-		model=graphComponent.getGraph().getModel();
-		this.editor=editor;
+		super(parent, "SCXML Listener");
+		highlightedCellsEachInstant = new ArrayList<HashSet<mxCell>>();
 
-		cellHighlighter=new CellSelector(graphComponent);
+		graphComponent = editor.getGraphComponent();
+		model = graphComponent.getGraph().getModel();
+		this.editor = editor;
+
+		cellHighlighter = new CellSelector(graphComponent);
 
 		addWindowListener(this);
 		JPanel contentPane = new JPanel(new BorderLayout());
 		populateGUI(contentPane);
-		contentPane.setOpaque(true); //content panes must be opaque
-		
-		//Create and set up the window.
+		contentPane.setOpaque(true); // content panes must be opaque
+
+		// Create and set up the window.
 		setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		setContentPane(contentPane);
 
-		//Display the window.
+		// Display the window.
 		pack();
 		setVisible(false);
 	}
-	
+
 	private void populateGUI(JPanel contentPane) {
 
 		JLabel portLabel = new JLabel("port:");
-		
+
 		port = new JTextField(10);
 		port.addActionListener(this);
 		port.getDocument().addDocumentListener(this);
-		
-		startStopButton=new JButton(mxResources.get("startSCXMLListener"));
+
+		startStopButton = new JButton(mxResources.get("startSCXMLListener"));
 		startStopButton.setActionCommand("start");
 		startStopButton.addActionListener(this);
-				
+
 		reloadButton = new JButton(mxResources.get("reloadSCXMLListener"));
 		reloadButton.setActionCommand("refresh");
 		reloadButton.setEnabled(false);
 		reloadButton.addActionListener(this);
 		JPanel reloadButtonPane = new JPanel();
-		reloadButtonPane.setLayout(new BoxLayout(reloadButtonPane,BoxLayout.LINE_AXIS));
+		reloadButtonPane.setLayout(new BoxLayout(reloadButtonPane,
+				BoxLayout.LINE_AXIS));
 		reloadButtonPane.add(reloadButton);
-		
+
 		JPanel startStopButtonPane = new JPanel();
-		startStopButtonPane.setLayout(new BoxLayout(startStopButtonPane,BoxLayout.LINE_AXIS));
+		startStopButtonPane.setLayout(new BoxLayout(startStopButtonPane,
+				BoxLayout.LINE_AXIS));
 		startStopButtonPane.add(portLabel);
 		startStopButtonPane.add(port);
 		startStopButtonPane.add(Box.createHorizontalStrut(5));
 		startStopButtonPane.add(startStopButton);
-		startStopButtonPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		startStopButtonPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5,
+				5));
 
-		//Create the list and put it in a scroll pane.
+		// Create the list and put it in a scroll pane.
 		listModel = new DefaultListModel();
 		list = new JList(listModel);
 		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -149,15 +153,17 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 		loadButton.setActionCommand("load");
 		loadButton.addActionListener(this);
 
-		//Create a panel that uses BoxLayout.
+		// Create a panel that uses BoxLayout.
 		JPanel loadSaveButtonPane = new JPanel();
-		loadSaveButtonPane.setLayout(new BoxLayout(loadSaveButtonPane,BoxLayout.LINE_AXIS));
+		loadSaveButtonPane.setLayout(new BoxLayout(loadSaveButtonPane,
+				BoxLayout.LINE_AXIS));
 		loadSaveButtonPane.add(saveButton);
 		loadSaveButtonPane.add(Box.createHorizontalGlue());
 		loadSaveButtonPane.add(loadButton);
-		loadSaveButtonPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		loadSaveButtonPane.setBorder(BorderFactory
+				.createEmptyBorder(5, 5, 5, 5));
 
-		contentPane.setLayout(new BoxLayout(contentPane,BoxLayout.Y_AXIS));
+		contentPane.setLayout(new BoxLayout(contentPane, BoxLayout.Y_AXIS));
 		contentPane.add(startStopButtonPane);
 		contentPane.add(reloadButtonPane);
 		contentPane.add(listScrollPane);
@@ -167,20 +173,19 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 	}
 
 	class SCXMLEventRenderer extends JLabel implements ListCellRenderer {
-		public Component getListCellRendererComponent(
-				JList list,
-				Object value,            // value to display
-				int index,               // cell index
-				boolean isSelected,      // is the cell selected
-				boolean cellHasFocus)    // the list and the cell have the focus
-		{	    	 
+		public Component getListCellRendererComponent(JList list, Object value, // value
+																				// to
+																				// display
+				int index, // cell index
+				boolean isSelected, // is the cell selected
+				boolean cellHasFocus) // the list and the cell have the focus
+		{
 			String s = value.toString();
-			setText(index+": "+s);
+			setText(index + ": " + s);
 			if (isSelected) {
 				setBackground(list.getSelectionBackground());
 				setForeground(list.getSelectionForeground());
-			}
-			else {
+			} else {
 				setBackground(list.getBackground());
 				setForeground(list.getForeground());
 			}
@@ -190,44 +195,53 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 			return this;
 		}
 	}
-	private int prevSelectedIndex=-1;
-	//This method is required by ListSelectionListener.
+
+	private int prevSelectedIndex = -1;
+
+	// This method is required by ListSelectionListener.
 	public void valueChanged(ListSelectionEvent e) {
 		if (e.getValueIsAdjusting() == false) {
-			int lastIndex = listModel.size()-1;
+			int lastIndex = listModel.size() - 1;
 			int selectedIndex = list.getSelectedIndex();
-			if (lastIndex>0) reloadButton.setEnabled(true);
-			if ((lastIndex<0) || (selectedIndex>=lastIndex)) {
+			if (lastIndex > 0)
+				reloadButton.setEnabled(true);
+			if ((lastIndex < 0) || (selectedIndex >= lastIndex)) {
 				SwingUtilities.invokeLater(new Runnable() {
 					@Override
 					public void run() {
 						JScrollBar vs = listScrollPane.getVerticalScrollBar();
-						if (vs!=null) vs.setValue(vs.getMaximum());
+						if (vs != null)
+							vs.setValue(vs.getMaximum());
 					}
 				});
 			}
-			if (selectedIndex>=0) {
+			if (selectedIndex >= 0) {
 				resetAllSCXMLEventExecutions(prevSelectedIndex);
 				HashSet<mxCell> set = getHighlightAtIndex(selectedIndex);
-				if (set!=null) {
-					for(mxCell c:set) {
-						if (c!=null) {
-							if (c.isEdge()) doEdgeShow(model,c,true,null);
-							else doNodeShow(model,c,true,null);
+				if (set != null) {
+					for (mxCell c : set) {
+						if (c != null) {
+							if (c.isEdge())
+								doEdgeShow(model, c, true, null);
+							else
+								doNodeShow(model, c, true, null);
 						}
 					}
 				}
-				prevSelectedIndex=selectedIndex;
+				prevSelectedIndex = selectedIndex;
 			}
 		}
 	}
 
-	private void setHighlightAtIndex(int index,HashSet<mxCell> highlightedCells) {
+	private void setHighlightAtIndex(int index, HashSet<mxCell> highlightedCells) {
 		highlightedCellsEachInstant.add(index, highlightedCells);
 	}
+
 	private HashSet<mxCell> getHighlightAtIndex(int index) {
-		if ((index>=0) && (highlightedCellsEachInstant.size()>index)) return highlightedCellsEachInstant.get(index);
-		else return null;
+		if ((index >= 0) && (highlightedCellsEachInstant.size() > index))
+			return highlightedCellsEachInstant.get(index);
+		else
+			return null;
 	}
 
 	public void showTool() {
@@ -241,13 +255,13 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 	@Override
 	public void windowActivated(WindowEvent e) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void windowClosed(WindowEvent e) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -260,41 +274,44 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 	@Override
 	public void windowDeactivated(WindowEvent e) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void windowDeiconified(WindowEvent e) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void windowIconified(WindowEvent e) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void windowOpened(WindowEvent e) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
-	String lastDir=null;
+	String lastDir = null;
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		String cmd=e.getActionCommand();
+		String cmd = e.getActionCommand();
 		Integer portValue;
-		if (cmd.equals("start") && ((portValue=validPort(port.getText()))!=null)) {
+		if (cmd.equals("start")
+				&& ((portValue = validPort(port.getText())) != null)) {
 			if (initiateListener(portValue)) {
 				setStatus(WAITING);
 				SwingUtilities.invokeLater(new Runnable() {
 					@Override
 					public void run() {
-						if ((clientSocket=waitForConnection(socket))!=null) {
+						if ((clientSocket = waitForConnection(socket)) != null) {
 							setStatus(STARTED);
-							listener=new SCXMLSocketListener(SCXMLListener.this,clientSocket);
+							listener = new SCXMLSocketListener(
+									SCXMLListener.this, clientSocket);
 							listener.start();
 						} else {
 							setStatus(STOPPED);
@@ -307,34 +324,42 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 		} else if (cmd.equals("stop")) {
 			setStatus(STOPPED);
 		} else if (cmd.equals("save")) {
-			String wd = (lastDir!=null)?lastDir:((editor.getCurrentFile()!=null)?editor.getCurrentFile().getParent():System.getProperty("user.dir"));
+			String wd = (lastDir != null) ? lastDir
+					: ((editor.getCurrentFile() != null) ? editor
+							.getCurrentFile().getParent() : System
+							.getProperty("user.dir"));
 			JFileChooser fc = new JFileChooser(wd);
-			fc.setFileFilter(new DefaultFileFilter(".txt","Event List"));
+			fc.setFileFilter(new DefaultFileFilter(".txt", "Event List"));
 			int rc = fc.showDialog(this, mxResources.get("save"));
 			if (rc == JFileChooser.APPROVE_OPTION) {
 				lastDir = fc.getSelectedFile().getParent();
 				String filename = fc.getSelectedFile().getAbsolutePath();
 				FileFilter selectedFilter = fc.getFileFilter();
-				if (selectedFilter instanceof DefaultFileFilter)
-				{
-					String ext = ((DefaultFileFilter) selectedFilter).getExtension();
+				if (selectedFilter instanceof DefaultFileFilter) {
+					String ext = ((DefaultFileFilter) selectedFilter)
+							.getExtension();
 					if (!filename.toLowerCase().endsWith(ext))
 						filename += ext;
 				}
-				if ((!(new File(filename).exists())) || JOptionPane.showConfirmDialog(graphComponent,mxResources.get("overwriteExistingFile")) == JOptionPane.YES_OPTION)
-				{
+				if ((!(new File(filename).exists()))
+						|| JOptionPane.showConfirmDialog(graphComponent,
+								mxResources.get("overwriteExistingFile")) == JOptionPane.YES_OPTION) {
 					try {
-						mxUtils.writeFile(getEventListToString(),filename);
+						mxUtils.writeFile(getEventListToString(), filename);
 					} catch (IOException ex) {
 						ex.printStackTrace();
-						JOptionPane.showMessageDialog(editor.getGraphComponent(),
-								ex.toString(),
+						JOptionPane.showMessageDialog(
+								editor.getGraphComponent(), ex.toString(),
 								mxResources.get("error"),
-								JOptionPane.ERROR_MESSAGE);					}			
+								JOptionPane.ERROR_MESSAGE);
+					}
 				}
 			}
 		} else if (cmd.equals("load")) {
-			String wd = (lastDir!=null)?lastDir:((editor.getCurrentFile()!=null)?editor.getCurrentFile().getParent():System.getProperty("user.dir"));
+			String wd = (lastDir != null) ? lastDir
+					: ((editor.getCurrentFile() != null) ? editor
+							.getCurrentFile().getParent() : System
+							.getProperty("user.dir"));
 			JFileChooser fc = new JFileChooser(wd);
 			fc.setFileFilter(new FileNameExtensionFilter("Event List", "txt"));
 			int rc = fc.showDialog(this, mxResources.get("openFile"));
@@ -347,26 +372,27 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 				} catch (IOException ex) {
 					ex.printStackTrace();
 					JOptionPane.showMessageDialog(editor.getGraphComponent(),
-							ex.toString(),
-							mxResources.get("error"),
+							ex.toString(), mxResources.get("error"),
 							JOptionPane.ERROR_MESSAGE);
-				}			
+				}
 				setStatus(STOPPED);
 			}
 		} else if (cmd.equals("refresh")) {
-			int size=listModel.size();
-			for (int i=0;i<size;i++) {
-				refreshEvent((SCXMLEvent)listModel.get(i),i);
+			int size = listModel.size();
+			for (int i = 0; i < size; i++) {
+				refreshEvent((SCXMLEvent) listModel.get(i), i);
 			}
 		}
 	}
 
 	private Integer validPort(String text) {
-		Integer port=null;
+		Integer port = null;
 		try {
-			port=Integer.parseInt(text);
+			port = Integer.parseInt(text);
 		} catch (NumberFormatException e) {
-			JOptionPane.showMessageDialog(this, "'"+text+"' is an invalid TCP port number.", "Error", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(this, "'" + text
+					+ "' is an invalid TCP port number.", "Error",
+					JOptionPane.ERROR_MESSAGE);
 		}
 		return port;
 	}
@@ -385,49 +411,55 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 	public void removeUpdate(DocumentEvent e) {
 		handleIDField(e);
 	}
-	
+
 	private void handleIDField(DocumentEvent e) {
 		if (isEmptyIDField(e))
 			startStopButton.setEnabled(false);
 		else
 			startStopButton.setEnabled(true);
 	}
+
 	private boolean isEmptyIDField(DocumentEvent e) {
-        if (e.getDocument().getLength() <= 0) {
-            return true;
-        }
-        return false;
-    }
-	
+		if (e.getDocument().getLength() <= 0) {
+			return true;
+		}
+		return false;
+	}
+
 	private boolean initiateListener(int port) {
-		if (socket==null) {
+		if (socket == null) {
 			try {
 				socket = new ServerSocket(port);
 				return true;
 			} catch (IOException e) {
-				JOptionPane.showMessageDialog(this, "impossible to listen to port '"+port+"': "+e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+				JOptionPane.showMessageDialog(
+						this,
+						"impossible to listen to port '" + port + "': "
+								+ e.getMessage(), "Error",
+						JOptionPane.ERROR_MESSAGE);
 			} catch (IllegalArgumentException e) {
-				JOptionPane.showMessageDialog(this, "illegal port: '"+port+"'", "Error", JOptionPane.ERROR_MESSAGE);
+				JOptionPane.showMessageDialog(this, "illegal port: '" + port
+						+ "'", "Error", JOptionPane.ERROR_MESSAGE);
 			}
 		}
 		return false;
 	}
-	
+
 	public void setStatus(int newStatus) {
 		switch (newStatus) {
 		case PRESTARTING:
-			status=PRESTARTING;
+			status = PRESTARTING;
 			startStopButton.setActionCommand("start");
 			startStopButton.setText(mxResources.get("startSCXMLListener"));
 			startStopButton.setEnabled(false);
 			port.setText("");
-			port.setEnabled(true);			
+			port.setEnabled(true);
 			list.setEnabled(false);
 			saveButton.setEnabled(false);
 			loadButton.setEnabled(false);
 			break;
 		case STARTED:
-			status=STARTED;
+			status = STARTED;
 			resetEventList();
 			startStopButton.setActionCommand("stop");
 			startStopButton.setText(mxResources.get("stopSCXMLListener"));
@@ -438,20 +470,20 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 			loadButton.setEnabled(false);
 			break;
 		case STOPPED:
-			status=STOPPED;
+			status = STOPPED;
 			stopTool();
 			startStopButton.setActionCommand("start");
 			startStopButton.setText(mxResources.get("startSCXMLListener"));
 			startStopButton.setEnabled(true);
 			port.setEnabled(true);
 			list.setEnabled(true);
-			if (listModel.size()>0) {
+			if (listModel.size() > 0) {
 				saveButton.setEnabled(true);
 			}
 			loadButton.setEnabled(true);
 			break;
 		case WAITING:
-			status=WAITING;
+			status = WAITING;
 			startStopButton.setActionCommand("wait");
 			startStopButton.setText(mxResources.get("waitForConnection"));
 			startStopButton.setEnabled(false);
@@ -461,31 +493,33 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 			loadButton.setEnabled(false);
 			break;
 		case LOADING:
-			status=LOADING;
+			status = LOADING;
 			resetEventList();
 			list.setEnabled(true);
 			break;
 		}
 	}
-	
+
 	private void resetEventList() {
 		resetAllSCXMLEventExecutions(list.getSelectedIndex());
 		listModel.clear();
 		highlightedCellsEachInstant.clear();
 	}
+
 	private String getEventListToString() {
-		String ret="";
-		for (Object o:listModel.toArray()) {
-			String es=((SCXMLEvent)o).write();
-			if (es!=null)
-				ret+=es+"\n";
+		String ret = "";
+		for (Object o : listModel.toArray()) {
+			String es = ((SCXMLEvent) o).write();
+			if (es != null)
+				ret += es + "\n";
 		}
 		return ret;
 	}
+
 	private void setEventListFromString(String events) throws IOException {
 		BufferedReader in = new BufferedReader(new StringReader(events));
 		String line;
-		while((line=in.readLine())!=null) {
+		while ((line = in.readLine()) != null) {
 			addEvent(line);
 		}
 	}
@@ -496,28 +530,37 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 
 	public void stopListener() {
 		try {
-			if (listener!=null) listener.halt();
-			if (socket!=null) socket.close();
+			if (listener != null)
+				listener.halt();
+			if (socket != null)
+				socket.close();
 		} catch (IOException e) {
-			JOptionPane.showMessageDialog(this, "Error while terminating SCXML listener.", "Error", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(this,
+					"Error while terminating SCXML listener.", "Error",
+					JOptionPane.ERROR_MESSAGE);
 		}
-		socket=null;
-		listener=null;
+		socket = null;
+		listener = null;
 	}
-	
+
 	private Socket waitForConnection(ServerSocket socket) {
-		if (socket!=null) {
+		if (socket != null) {
 			try {
-				Socket clientSocket=socket.accept();
+				Socket clientSocket = socket.accept();
 				return clientSocket;
 			} catch (IOException e) {
-				JOptionPane.showMessageDialog(this, "Error while accepting connection.", "Error", JOptionPane.ERROR_MESSAGE);
+				JOptionPane.showMessageDialog(this,
+						"Error while accepting connection.", "Error",
+						JOptionPane.ERROR_MESSAGE);
 			}
 		} else {
-			JOptionPane.showMessageDialog(this, "The socket is NULL, impossible to wait for a connection.", "Warning", JOptionPane.WARNING_MESSAGE);
+			JOptionPane.showMessageDialog(this,
+					"The socket is NULL, impossible to wait for a connection.",
+					"Warning", JOptionPane.WARNING_MESSAGE);
 		}
 		return null;
 	}
+
 	class SCXMLSocketListener extends Thread {
 		private SCXMLListener gui;
 		private Socket socket;
@@ -525,171 +568,200 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 		private OutputStream out;
 		private static final byte ACK = 1;
 
-		public SCXMLSocketListener(SCXMLListener l,Socket clientSocket) {
-			this.gui=l;
-			this.socket=clientSocket;
+		public SCXMLSocketListener(SCXMLListener l, Socket clientSocket) {
+			this.gui = l;
+			this.socket = clientSocket;
 		}
 
 		public void run() {
-	        try {
-				in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				out=socket.getOutputStream();
-        		out.write(ACK);
-		        String inputLine;
-		        while (gui.getStatus()==STARTED) {
-		        	if (in.ready()) {
-		        		inputLine = in.readLine();
-		        		out.write(ACK);
-		        		if (inputLine!=null) gui.addEvent(inputLine);
-		        	}
-		        }
+			try {
+				in = new BufferedReader(new InputStreamReader(
+						socket.getInputStream()));
+				out = socket.getOutputStream();
+				out.write(ACK);
+				String inputLine;
+				while (gui.getStatus() == STARTED) {
+					if (in.ready()) {
+						inputLine = in.readLine();
+						out.write(ACK);
+						if (inputLine != null)
+							gui.addEvent(inputLine);
+					}
+				}
 			} catch (IOException e) {
 				gui.setStatus(STOPPED);
 			}
-        }
-		
+		}
+
 		public void halt() throws IOException {
-	        if (in!=null) in.close();
-	        if (socket!=null) socket.close();
+			if (in != null)
+				in.close();
+			if (socket != null)
+				socket.close();
 		}
 	}
 
-	public void refreshEvent(SCXMLEvent ev,int pos) {
+	public void refreshEvent(SCXMLEvent ev, int pos) {
 		ev.refreshEvent();
-		HashSet<mxCell> prevHighlightedCells = getHighlightAtIndex(pos-1);
-		HashSet<mxCell> newHighlightedCells = (prevHighlightedCells==null)? new HashSet<mxCell>():new HashSet<mxCell>(prevHighlightedCells);
+		HashSet<mxCell> prevHighlightedCells = getHighlightAtIndex(pos - 1);
+		HashSet<mxCell> newHighlightedCells = (prevHighlightedCells == null) ? new HashSet<mxCell>()
+				: new HashSet<mxCell>(prevHighlightedCells);
 		// updates the highlight
-		ev.execute(model,false,newHighlightedCells);
+		ev.execute(model, false, newHighlightedCells);
 		// store the new highlight state (without changing the display
-		setHighlightAtIndex(pos,newHighlightedCells);
+		setHighlightAtIndex(pos, newHighlightedCells);
 	}
+
 	public void addEvent(String command) {
 		try {
 			SCXMLEvent event = new SCXMLEvent(command);
-			int lastIndex = listModel.size()-1;
+			int lastIndex = listModel.size() - 1;
 			int selectedIndex = list.getSelectedIndex();
 			listModel.addElement(event);
 
 			HashSet<mxCell> prevHighlightedCells = getHighlightAtIndex(lastIndex);
-			HashSet<mxCell> newHighlightedCells = (prevHighlightedCells==null)? new HashSet<mxCell>():new HashSet<mxCell>(prevHighlightedCells);
+			HashSet<mxCell> newHighlightedCells = (prevHighlightedCells == null) ? new HashSet<mxCell>()
+					: new HashSet<mxCell>(prevHighlightedCells);
 			// updates the highlight
-			event.execute(model,false,newHighlightedCells);
+			event.execute(model, false, newHighlightedCells);
 			// store the new highlight state (without changing the display
-			setHighlightAtIndex(lastIndex+1,newHighlightedCells);
+			setHighlightAtIndex(lastIndex + 1, newHighlightedCells);
 
-			if ((lastIndex<0) || (selectedIndex>=lastIndex)) {
+			if ((lastIndex < 0) || (selectedIndex >= lastIndex)) {
 				resetAllSCXMLEventExecutions(selectedIndex);
-				list.setSelectedIndex(lastIndex+1);
+				list.setSelectedIndex(lastIndex + 1);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			//JOptionPane.showMessageDialog(this, "Unknown command received", "Warning", JOptionPane.WARNING_MESSAGE);
+			// JOptionPane.showMessageDialog(this, "Unknown command received",
+			// "Warning", JOptionPane.WARNING_MESSAGE);
 		}
 	}
-	
+
 	public void resetAllSCXMLEventExecutions(int i) {
-		if (i>=0) {
+		if (i >= 0) {
 			HashSet<mxCell> highlightedCells = getHighlightAtIndex(i);
-			if (highlightedCells!=null) {
-				for (mxCell c:highlightedCells) {
-					if (c!=null) {
-						if (c.isEdge()) doEdgeHide(model, c,true,null);
-						else doNodeHide(model, c,true,null);
+			if (highlightedCells != null) {
+				for (mxCell c : highlightedCells) {
+					if (c != null) {
+						if (c.isEdge())
+							doEdgeHide(model, c, true, null);
+						else
+							doNodeHide(model, c, true, null);
 					}
 				}
 			}
 		}
 	}
 
-	private void doNodeShow(mxIGraphModel model,mxCell n,boolean show,HashSet<mxCell> highlightedCells) {
-		if (show) cellHighlighter.selectCell(n);
-		if (highlightedCells!=null) highlightedCells.add(n);
+	private void doNodeShow(mxIGraphModel model, mxCell n, boolean show,
+			HashSet<mxCell> highlightedCells) {
+		if (show)
+			cellHighlighter.selectCell(n);
+		if (highlightedCells != null)
+			highlightedCells.add(n);
 	}
-	private void doEdgeShow(mxIGraphModel model,mxCell n,boolean show,HashSet<mxCell> highlightedCells) {
-		if (show) cellHighlighter.selectCell(n);
-		if (highlightedCells!=null) highlightedCells.add(n);
+
+	private void doEdgeShow(mxIGraphModel model, mxCell n, boolean show,
+			HashSet<mxCell> highlightedCells) {
+		if (show)
+			cellHighlighter.selectCell(n);
+		if (highlightedCells != null)
+			highlightedCells.add(n);
 	}
-	private void doNodeHide(mxIGraphModel model,mxCell n,boolean show,HashSet<mxCell> highlightedCells) {
-		if (show) cellHighlighter.unselectCell(n);
-		if (highlightedCells!=null) highlightedCells.remove(n);
+
+	private void doNodeHide(mxIGraphModel model, mxCell n, boolean show,
+			HashSet<mxCell> highlightedCells) {
+		if (show)
+			cellHighlighter.unselectCell(n);
+		if (highlightedCells != null)
+			highlightedCells.remove(n);
 	}
-	private void doEdgeHide(mxIGraphModel model,mxCell n,boolean show,HashSet<mxCell> highlightedCells) {
-		if (show) cellHighlighter.unselectCell(n);
-		if (highlightedCells!=null) highlightedCells.remove(n);
+
+	private void doEdgeHide(mxIGraphModel model, mxCell n, boolean show,
+			HashSet<mxCell> highlightedCells) {
+		if (show)
+			cellHighlighter.unselectCell(n);
+		if (highlightedCells != null)
+			highlightedCells.remove(n);
 	}
 
 	public class SCXMLEvent {
-		static final int SHOWNODE=1;
-		static final int HIDENODE=0;
-		static final int SHOWEDGE=3;
-		static final int HIDEEDGE=2;
-		static final int UNK=20;
+		static final int SHOWNODE = 1;
+		static final int HIDENODE = 0;
+		static final int SHOWEDGE = 3;
+		static final int HIDEEDGE = 2;
+		static final int UNK = 20;
 		int command;
-		mxCell arg1,arg2;
-		String arg1n,arg2n;
+		mxCell arg1, arg2;
+		String arg1n, arg2n;
 
 		public SCXMLEvent(String command) throws Exception {
 			Pattern nodep = Pattern.compile("^[\\s]*([01])[\\s]+(.+)[\\s]*$");
-			Pattern edgep = Pattern.compile("^[\\s]*([23])[\\s]+(.+)[\\s]+->[\\s]+(.+)[\\s]*$");
+			Pattern edgep = Pattern
+					.compile("^[\\s]*([23])[\\s]+(.+)[\\s]+->[\\s]+(.+)[\\s]*$");
 			Matcher m = nodep.matcher(command);
-			if (m.matches() && (m.groupCount()==2)) {
-				this.command=Integer.parseInt(m.group(1));
-				arg1n=m.group(2);
+			if (m.matches() && (m.groupCount() == 2)) {
+				this.command = Integer.parseInt(m.group(1));
+				arg1n = m.group(2);
 				arg1 = graphComponent.getSCXMLNodeForID(arg1n);
 			} else {
 				m = edgep.matcher(command);
-				if (m.matches() && (m.groupCount()==3)) {
-					this.command=Integer.parseInt(m.group(1));
-					arg1n=m.group(2);
-					arg2n=m.group(3);
-					arg1=graphComponent.getSCXMLNodeForID(arg1n);
-					arg2=graphComponent.getSCXMLNodeForID(arg2n);
+				if (m.matches() && (m.groupCount() == 3)) {
+					this.command = Integer.parseInt(m.group(1));
+					arg1n = m.group(2);
+					arg2n = m.group(3);
+					arg1 = graphComponent.getSCXMLNodeForID(arg1n);
+					arg2 = graphComponent.getSCXMLNodeForID(arg2n);
 				} else {
-					this.command=UNK;
+					this.command = UNK;
 					throw new Exception("error in received command");
 				}
 			}
 		}
 
 		public void refreshEvent() {
-			if ((arg1==null) && (arg1n!=null)) arg1=graphComponent.getSCXMLNodeForID(arg1n);
-			if ((arg2==null) && (arg2n!=null)) arg2=graphComponent.getSCXMLNodeForID(arg2n);
+			if ((arg1 == null) && (arg1n != null))
+				arg1 = graphComponent.getSCXMLNodeForID(arg1n);
+			if ((arg2 == null) && (arg2n != null))
+				arg2 = graphComponent.getSCXMLNodeForID(arg2n);
 		}
-		
-		public void execute(mxIGraphModel model,boolean show,HashSet<mxCell> highlightedCells) {
+
+		public void execute(mxIGraphModel model, boolean show,
+				HashSet<mxCell> highlightedCells) {
 			Object[] edges;
 			switch (command) {
 			case SHOWNODE:
-				doNodeShow(model, arg1,show,highlightedCells);
+				doNodeShow(model, arg1, show, highlightedCells);
 				break;
 			case SHOWEDGE:
 				edges = mxGraphModel.getEdgesBetween(model, arg1, arg2, true);
-				for(Object edge:edges){
-					doEdgeShow(model,(mxCell) edge,show,highlightedCells);
+				for (Object edge : edges) {
+					doEdgeShow(model, (mxCell) edge, show, highlightedCells);
 				}
 				break;
 			case HIDENODE:
-				doNodeHide(model, arg1,show,highlightedCells);
+				doNodeHide(model, arg1, show, highlightedCells);
 				break;
 			case HIDEEDGE:
 				edges = mxGraphModel.getEdgesBetween(model, arg1, arg2, true);
-				for(Object edge:edges){
-					doEdgeHide(model,(mxCell) edge,show,highlightedCells);
+				for (Object edge : edges) {
+					doEdgeHide(model, (mxCell) edge, show, highlightedCells);
 				}
 				break;
 			}
 		}
-		
+
 		public String write() {
 			switch (command) {
 			case SHOWNODE:
-				return "1 "+arg1n;
+				return "1 " + arg1n;
 			case SHOWEDGE:
-				return "3 "+arg1n+" -> "+arg2n;
+				return "3 " + arg1n + " -> " + arg2n;
 			case HIDENODE:
-				return "0 "+arg1n;
+				return "0 " + arg1n;
 			case HIDEEDGE:
-				return "2 "+arg1n+" -> "+arg2n;
+				return "2 " + arg1n + " -> " + arg2n;
 			}
 			return null;
 		}
@@ -698,13 +770,13 @@ public class SCXMLListener extends JDialog implements ListSelectionListener, Win
 		public String toString() {
 			switch (command) {
 			case SHOWNODE:
-				return "show node "+arg1n;
+				return "show node " + arg1n;
 			case SHOWEDGE:
-				return "show edge "+arg1n+"->"+arg2n;
+				return "show edge " + arg1n + "->" + arg2n;
 			case HIDENODE:
-				return "hide node "+arg1n;
+				return "hide node " + arg1n;
 			case HIDEEDGE:
-				return "hide edge "+arg1n+"->"+arg2n;
+				return "hide edge " + arg1n + "->" + arg2n;
 			}
 			return "[SCXMLEvent error]";
 		}

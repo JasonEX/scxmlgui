@@ -35,7 +35,7 @@ public class SCXMLConnectionHandler extends mxConnectionHandler {
 		mxCell createdCell = (mxCell) graph.insertVertex(parent,
 				value.getInternalID(), value, point.getX() - 50,
 				point.getY() - 50, 75, 75, value.getStyle());
-		
+
 		return createdCell;
 	}
 
