@@ -17,8 +17,6 @@ import com.mxgraph.view.mxGraph;
 
 public class SCXMLGraphHandler extends mxGraphHandler {
 
-	private static final long serialVersionUID = 1L;
-
 	public SCXMLGraphHandler(mxGraphComponent graphComponent) {
 		super(graphComponent);
 	}

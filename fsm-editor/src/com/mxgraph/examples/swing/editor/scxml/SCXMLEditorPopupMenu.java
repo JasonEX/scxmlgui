@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.Point;
 import java.io.File;
 import java.util.List;
@@ -9,6 +13,7 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+
 import com.mxgraph.examples.config.SCXMLConstraints.RestrictedState;
 import com.mxgraph.examples.swing.SCXMLGraphEditor;
 import com.mxgraph.examples.swing.editor.fileimportexport.OutSource;
@@ -36,7 +41,8 @@ import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxICell;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxResources;
-import com.mxgraph.view.mxCellState;
+
+import fr.lusis.scxml.subfsm.view.SCXMLCellEditorState;
 
 public class SCXMLEditorPopupMenu extends JPopupMenu {
 
@@ -79,7 +85,7 @@ public class SCXMLEditorPopupMenu extends JPopupMenu {
 					}
 					// if the edge is not a loop you can add/remove corners
 					if (c.getSource() != c.getTarget()) {
-						mxCellState cellState = graph.getView().getState(c);
+						SCXMLCellEditorState cellState = (SCXMLCellEditorState) graph.getView().getState(c);
 						int index;
 						int lastIndex = cellState.getAbsolutePointCount() - 1;
 						if ((index = cellState.getIndexOfEdgePointAt(graphPt.x,
@@ -166,7 +172,7 @@ public class SCXMLEditorPopupMenu extends JPopupMenu {
 												new EditEdgeOrderAction(c,
 														screenCoord)))
 										.setEnabled(
-												graph.getAllOutgoingEdges(c).length > 1);
+												graph.getOutgoingEdges(c).length > 1);
 							JMenuItem menuItem2 = new JMenuItem(editor.bind(
 									mxResources.get("editOutsourcedNode"),
 									new SetNodeAsOutsourced(c, screenCoord)));

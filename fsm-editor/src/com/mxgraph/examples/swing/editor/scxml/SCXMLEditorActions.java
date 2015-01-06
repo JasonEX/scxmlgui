@@ -7,6 +7,11 @@
  * See LICENSE file for license details. If you are unable to locate
  * this file please contact info (at) jgraph (dot) com.
  */
+
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 package com.mxgraph.examples.swing.editor.scxml;
 
 import java.awt.Component;
@@ -80,6 +85,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class AddAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3385308682146778815L;
 		private Point pos;
 		mxCell parent;
 
@@ -122,6 +131,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class EditEdgeOrderAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -624927871062418155L;
 		private mxCell source;
 		private Point pos;
 
@@ -149,6 +162,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class EditEdgeAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -1985911945306239053L;
 		private Point pos;
 		private mxCell cell;
 
@@ -177,6 +194,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class AddCornerToEdgeAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2660490712431618097L;
 		private Point pos, unscaledPos;
 		private mxCell cell;
 		private int index;
@@ -222,6 +243,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class RemoveCornerToEdgeAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 7573236427434364091L;
 		private int index;
 		private mxCell cell;
 
@@ -253,6 +278,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class EditNodeAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -8182724623648734554L;
 		private Point pos;
 		private mxCell cell;
 		private mxCell rootOfGraph;
@@ -282,6 +311,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SetNodeAsInitial extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3648943231419801117L;
 		private mxCell cell;
 
 		public SetNodeAsInitial(mxCell c) {
@@ -308,6 +341,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class ToggleWithTargetAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -9134462763291440052L;
 		private mxCell cell;
 
 		public ToggleWithTargetAction(mxCell c) {
@@ -334,6 +371,11 @@ public class SCXMLEditorActions {
 	}
 
 	public static class ToggleIgnoreStoredLayout extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 5160214381456919511L;
+
 		public static boolean isSelected(SCXMLGraphEditor editor) {
 			return editor.preferences
 					.getBoolean(
@@ -353,6 +395,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SetNodeAsFinal extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2184957428242196556L;
 		private mxCell cell;
 
 		public SetNodeAsFinal(mxCell c) {
@@ -379,6 +425,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SetNodeAsCluster extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -66626704383248694L;
 		private mxCell cell;
 
 		public SetNodeAsCluster(mxCell c) {
@@ -405,6 +455,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SetNodeAsOutsourced extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -5921411966336371483L;
 		private Point pos;
 		private mxCell cell;
 
@@ -444,6 +498,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SetNodeAsParallel extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -8278546456925865865L;
 		private mxCell cell;
 
 		public SetNodeAsParallel(mxCell c) {
@@ -471,6 +529,10 @@ public class SCXMLEditorActions {
 
 	public static class SetNodeAsRestricted extends AbstractAction {
 
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2605605590512989375L;
 		private mxCell cell;
 
 		public SetNodeAsRestricted(mxCell c) {
@@ -505,6 +567,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SetNodeAsHistory extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2206997120960705664L;
 		private mxCell cell;
 		private boolean deep;
 
@@ -547,6 +613,11 @@ public class SCXMLEditorActions {
 	 */
 	@SuppressWarnings("serial")
 	public static class SaveAction extends AbstractAction {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3772683693425081329L;
 
 		/**
 		 * 
@@ -639,6 +710,10 @@ public class SCXMLEditorActions {
 		/**
 		 * 
 		 */
+		private static final long serialVersionUID = -1341155650670575793L;
+		/**
+		 * 
+		 */
 		protected boolean undo;
 
 		/**
@@ -670,6 +745,11 @@ public class SCXMLEditorActions {
 	}
 
 	public static class NewSCXMLAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6149211113087500476L;
+
 		/**
 		 * 
 		 */
@@ -731,6 +811,10 @@ public class SCXMLEditorActions {
 	 */
 	@SuppressWarnings("serial")
 	public static class DoLayoutAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2157443282277148507L;
 		mxGraph graph;
 		mxClusterLayout layout;
 		mxCell parentToLayout;
@@ -763,6 +847,10 @@ public class SCXMLEditorActions {
 	 */
 	@SuppressWarnings("serial")
 	public static class OpenAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -8072057089334709756L;
 		/**
 		 * 
 		 */
@@ -873,6 +961,10 @@ public class SCXMLEditorActions {
 	}
 
 	public static class EditSelectedCellAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2345367705504029393L;
 		private mxCell cell;
 
 		public EditSelectedCellAction(mxCell cell) {
@@ -916,6 +1008,11 @@ public class SCXMLEditorActions {
 		/**
 		 * 
 		 */
+		private static final long serialVersionUID = 6324879887605931185L;
+
+		/**
+		 * 
+		 */
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
 			SCXMLSearchTool st = editor.getSCXMLSearchTool();
@@ -925,6 +1022,11 @@ public class SCXMLEditorActions {
 
 	@SuppressWarnings("serial")
 	public static class ShowSCXMLListener extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1444343338770460014L;
+
 		/**
 		 * 
 		 */
@@ -938,6 +1040,10 @@ public class SCXMLEditorActions {
 	public static class ToggleDisplayOutsourcedContentInNode extends
 			AbstractAction {
 
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3802490536985139261L;
 		private mxCell node = null;
 		private boolean refresh;
 
@@ -991,6 +1097,11 @@ public class SCXMLEditorActions {
 	}
 
 	public static class ToggleDisplayOutsourcedContent extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3924349816946476299L;
+
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
@@ -1026,6 +1137,11 @@ public class SCXMLEditorActions {
 		/**
 		 * 
 		 */
+		private static final long serialVersionUID = 1715078833697704188L;
+
+		/**
+		 * 
+		 */
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
 			editor.getGraphComponent().zoomIn();
@@ -1033,6 +1149,11 @@ public class SCXMLEditorActions {
 	}
 
 	public static class ZoomOUT extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3773237049060351173L;
+
 		/**
 		 * 
 		 */
@@ -1071,6 +1192,11 @@ public class SCXMLEditorActions {
 	}
 
 	public static class SCXMLDelete extends DeleteAction {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 294688993429791935L;
 
 		public SCXMLDelete() {
 			super("delete");

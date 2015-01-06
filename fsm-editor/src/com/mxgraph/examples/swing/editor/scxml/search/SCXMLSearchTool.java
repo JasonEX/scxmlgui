@@ -46,7 +46,7 @@ import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxResources;
 
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({"unchecked", "rawtypes", "unused"})
 public class SCXMLSearchTool extends JDialog implements ListSelectionListener,
 		WindowListener, ActionListener, DocumentListener {
 

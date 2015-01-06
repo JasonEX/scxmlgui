@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,7 +34,7 @@ import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxICell;
 import com.mxgraph.model.mxIGraphModel;
-import com.mxgraph.util.StringUtils;
+import com.mxgraph.model.mxGraphModel;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxPoint;
@@ -38,9 +43,12 @@ import com.mxgraph.util.mxResources;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 
+import fr.lusis.scxml.subfsm.utils.StringUtils;
+
 /**
  * A graph that creates new edges from a given template edge.
  */
+@SuppressWarnings("unused")
 public class SCXMLGraph extends mxGraph {
 	/**
 	 * Holds the shared number formatter.
@@ -135,8 +143,7 @@ public class SCXMLGraph extends mxGraph {
 					// System.out.println(node+" "+parent+" "+stateChild+" "+stateParent);
 					Object container = gc.getCellAt(
 							(int) stateChild.getCenterX(),
-							(int) stateChild.getCenterY(), true, null, cell,
-							true);
+							(int) stateChild.getCenterY(), true, null);
 					// System.out.println(container);
 					if (container != parent)
 						warnings += node
@@ -222,7 +229,7 @@ public class SCXMLGraph extends mxGraph {
 					List<RestrictedState> restrictionsOnNode = nodeValue
 							.getRestrictedStates();
 					Object[] allOutgoingEdges = editor.getGraphComponent()
-							.getGraph().getAllOutgoingEdges(node);
+							.getGraph().getOutgoingEdges(node);
 					List<String> existingEventsOnSourceNode = new LinkedList<String>();
 					for (Object object : allOutgoingEdges) {
 						SCXMLEdge tempEdge = (SCXMLEdge) ((mxCell) object)
@@ -303,7 +310,7 @@ public class SCXMLGraph extends mxGraph {
 						|| StringUtils.isEmptyString(target.getID())) {
 					warnings += "target and source of a transition must have not empty name.\n";
 				}
-				Object lca = model.getNearestCommonAncestor(edge.getSource(),
+				Object lca = ((mxGraphModel) model).getNearestCommonAncestor(edge.getSource(),
 						edge.getTarget());
 				if (lca != null && lca instanceof mxCell) {
 					SCXMLNode scxmlLCA = (SCXMLNode) ((mxCell) lca).getValue();
@@ -360,7 +367,58 @@ public class SCXMLGraph extends mxGraph {
 		return isCellsEditable() && !uneditable.contains(cell);
 	}
 
-	@Override
+	public class RootStrength {
+		private boolean isRoot;
+		private int strength;
+
+		public RootStrength(boolean isRoot,int strength) {
+			this.isRoot=isRoot;
+			this.strength=strength;
+		}
+		public boolean isRoot() {
+			return isRoot;
+		}
+		public int getStrength() {
+			return strength;
+		}
+	}
+	
+	private Object getTerminalOutsideSet(Object edge, Set<Object> set) {
+		Object source = view.getVisibleTerminal(edge, true);
+		Object target = view.getVisibleTerminal(edge, false);
+		
+		boolean sourceInSet=(source!=null) && (set.contains(source));
+		boolean targetInSet=(target!=null) && (set.contains(target));
+
+		if (!sourceInSet && (source!=null) && (target!=null) && targetInSet)
+			return source;
+		else if (!targetInSet && (source!=null) && (target!=null) && sourceInSet)
+			return target;
+		else return null;
+	}
+	
+	private RootStrength internalVertexShouldBeRoot(Object cell, Object parent,
+			boolean invert) {
+		Object[] conns = getEdges(cell);
+		HashSet<Object> descendants = new HashSet<Object>(Arrays.asList(getChildCells(cell, true, false)));
+		int fanOut = 0;
+		int fanIn = 0;
+
+		for (int j = 0; j < conns.length; j++) {
+			Object src = getTerminalOutsideSet(conns[j], descendants);
+
+			if (((mxCell) conns[j]).getSource() == src) {
+				fanIn++;
+			} else {
+				fanOut++;
+			}
+		}
+		int diff = (invert) ? fanIn - fanOut : fanOut - fanIn;
+
+		return new RootStrength((invert && fanOut == 0)
+				|| (!invert && fanIn == 0), diff);
+	}
+	
 	public RootStrength vertexShouldBeRoot(Object cell, Object parent,
 			boolean invert) {
 		if (cell instanceof mxCell) {
@@ -370,9 +428,9 @@ public class SCXMLGraph extends mxGraph {
 				return new RootStrength((invert) ? ((SCXMLNode) v).isFinal()
 						: ((SCXMLNode) v).isInitial(), 0);
 			} else
-				return super.vertexShouldBeRoot(cell, parent, invert);
+				return this.internalVertexShouldBeRoot(cell, parent, invert);
 		} else
-			return super.vertexShouldBeRoot(cell, parent, invert);
+			return this.internalVertexShouldBeRoot(cell, parent, invert);
 	}
 
 	@Override
@@ -380,7 +438,7 @@ public class SCXMLGraph extends mxGraph {
 			Object source, Object target) {
 		// System.out.println("insert edge: parent:"+parent+" value:"+value+" source:"+source+" target:"+target);
 		try {
-			int size = getAllOutgoingEdges(source).length;
+			int size = getOutgoingEdges(source).length;
 			if (value == null) {
 				value = getEditor().getCurrentFileIO().buildEdgeValue();
 			} else if (!(value instanceof SCXMLEdge)) {
@@ -395,7 +453,7 @@ public class SCXMLGraph extends mxGraph {
 			Object edge = insertEdge(parent,
 					((SCXMLEdge) value).getInternalID(), value, source, target,
 					"");
-			setCellStyle(((SCXMLEdge) value).getStyle((mxCell) edge), edge);
+			setCellStyle(((SCXMLEdge) value).getStyle((mxCell) edge), new Object[]{edge});
 			return edge;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -403,7 +461,6 @@ public class SCXMLGraph extends mxGraph {
 		return null;
 	}
 
-	@Override
 	public void askToUseThisEdgeValue(Object clone, Object otherEdgeValue) {
 		int answer = JOptionPane.showConfirmDialog(editor,
 				mxResources.get("createAsNewTargetForMultitarget"),
@@ -418,8 +475,7 @@ public class SCXMLGraph extends mxGraph {
 	}
 
 	@Override
-	public Object[] cloneCells(Object[] cells, boolean allowInvalidEdges,
-			Map<Object, Object> mapping) {
+	public Object[] cloneCells(Object[] cells, boolean allowInvalidEdges) {
 		Object[] clones = null;
 
 		if (cells != null) {
@@ -429,7 +485,7 @@ public class SCXMLGraph extends mxGraph {
 			if (!tmp.isEmpty()) {
 				double scale = view.getScale();
 				mxPoint trans = view.getTranslate();
-				clones = model.cloneCells(cells, true, mapping);
+				clones = model.cloneCells(cells, true);
 
 				for (int i = 0; i < cells.length; i++) {
 					Object newValue = ((SCXMLImportExport) getEditor()
@@ -574,7 +630,7 @@ public class SCXMLGraph extends mxGraph {
 						// removing this edge may be causing.
 						mxCell source = (mxCell) cell.getSource();
 						if (!cellSet.contains(source)
-								&& getAllOutgoingEdges(source).length > 0) {
+								&& getOutgoingEdges(source).length > 0) {
 							SCXMLChangeHandler.addStateOfNodeInCurrentEdit(
 									source, model);
 							reOrderOutgoingEdges(source);
@@ -605,7 +661,7 @@ public class SCXMLGraph extends mxGraph {
 	public void reOrderOutgoingEdges(mxCell source) {
 		HashMap<Integer, ArrayList<SCXMLEdge>> pos = new HashMap<Integer, ArrayList<SCXMLEdge>>();
 		int min = 0, max = 0;
-		for (Object s : getAllOutgoingEdges(source)) {
+		for (Object s : getOutgoingEdges(source)) {
 			mxCell c = (mxCell) s;
 			SCXMLEdge v = (SCXMLEdge) c.getValue();
 			int o = v.getOrder();
@@ -658,7 +714,7 @@ public class SCXMLGraph extends mxGraph {
 			}
 			// connect edge to new terminal (source or target)
 			Object previous = model.getTerminal(edge, source);
-			cellConnected(edge, terminal, source);
+			cellConnected(edge, terminal, source, null);
 			fireEvent(new mxEventObject(mxEvent.CONNECT_CELL, "edge", edge,
 					"terminal", terminal, "source", source, "previous",
 					previous));
@@ -678,7 +734,7 @@ public class SCXMLGraph extends mxGraph {
 			updateConnectionOfSCXMLEdge(edgeValue, (source) ? terminal : null,
 					(source) ? null : terminal, previous);
 			// update edge style
-			setCellStyle(edgeValue.getStyle((mxCell) edge), edge);
+			setCellStyle(edgeValue.getStyle((mxCell) edge), new Object[]{edge});
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {

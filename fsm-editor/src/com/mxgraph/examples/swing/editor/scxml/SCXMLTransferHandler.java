@@ -1,7 +1,6 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -19,7 +18,13 @@ import com.mxgraph.examples.swing.editor.scxml.SCXMLEditorActions.OpenAction;
 import com.mxgraph.swing.handler.mxGraphTransferHandler;
 import com.mxgraph.util.mxResources;
 
+@SuppressWarnings("unchecked")
 public class SCXMLTransferHandler extends mxGraphTransferHandler {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 4398945629256098445L;
 
 	@Override
 	public boolean canImport(JComponent comp, DataFlavor[] flavors) {
@@ -71,7 +76,7 @@ public class SCXMLTransferHandler extends mxGraphTransferHandler {
 	}
 
 	public static SCXMLGraphEditor getEditorFromComponent(Component c) {
-		Container p = null;
+//		Container p = null;
 		do {
 			if (c instanceof SCXMLGraphEditor)
 				return (SCXMLGraphEditor) c;

@@ -1,14 +1,15 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.Dialog.ModalityType;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
 
 import javax.swing.AbstractAction;
@@ -32,11 +33,9 @@ import com.mxgraph.examples.swing.editor.scxml.SCXMLEditorActions.ShowSCXMLFindT
 import com.mxgraph.examples.swing.editor.scxml.SCXMLEditorActions.ShowSCXMLListener;
 import com.mxgraph.examples.swing.editor.scxml.SCXMLEditorActions.ToggleDisplayOutsourcedContent;
 import com.mxgraph.examples.swing.editor.scxml.SCXMLEditorActions.ToggleIgnoreStoredLayout;
-import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.swing.util.mxGraphActions;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
-import com.mxgraph.view.mxGraph;
 
 public class SCXMLEditorMenuBar extends JMenuBar {
 
@@ -96,13 +95,12 @@ public class SCXMLEditorMenuBar extends JMenuBar {
 		}
 	}
 
-	@SuppressWarnings("serial")
 	public SCXMLEditorMenuBar(final SCXMLGraphEditor ed) {
 		this.editor = ed;
-		final mxGraphComponent graphComponent = editor.getGraphComponent();
-		final mxGraph graph = graphComponent.getGraph();
+//		final mxGraphComponent graphComponent = editor.getGraphComponent();
+//		final mxGraph graph = graphComponent.getGraph();
 		JMenu menu = null;
-		JMenu submenu = null;
+//		JMenu submenu = null;
 
 		// Creates the file menu
 		fileMenu = add(new JMenu(mxResources.get("file")));
@@ -188,19 +186,19 @@ public class SCXMLEditorMenuBar extends JMenuBar {
 						+ "Institute for Creative Technologies\n"
 						+ "University of Southern California\n\n"
 						+ "Contributions by:\n"
-						+ "Társi Róbert, Alerant Zrt (Hungary)\n";
+						+ "Társi Róbert, Alerant Zrt (Hungary)\n\n"
+						+ "Modified version for sub-FSM, for internal use\n"
+						+ "Yuqian YANG, LUSIS, FR";
 				try {
-
-					info = mxUtils.readFile(mxUtils
-							.getURIForResourceNamed("info.txt"));
-					svn = mxUtils.readFile(mxUtils
-							.getURIForResourceNamed("svn.version"));
+					info = mxUtils.readFile("info.txt");
+					svn = mxUtils.readFile("svn.version");
 				} catch (Exception e1) {
 					e1.printStackTrace();
 				}
-				TextDialog a = new TextDialog(parent = SwingUtilities
-						.windowForComponent(editor), "About",
-						info + "\n" + svn, ModalityType.TOOLKIT_MODAL);
+				parent = SwingUtilities.windowForComponent(editor);
+				TextDialog a = new TextDialog(parent, "About",
+						info + "\n" + svn + "\n\n" + "https://github.com/JasonEX/scxmlgui/tree/sub-FSM",
+						ModalityType.TOOLKIT_MODAL);
 				a.setResizable(false);
 			}
 		});

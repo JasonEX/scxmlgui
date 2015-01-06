@@ -88,6 +88,10 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	}
 
 	public class UndoAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6363272738245444450L;
 		private Action externalAction = null;
 
 		public UndoAction() {
@@ -120,6 +124,10 @@ public class UndoJTextPane extends RSyntaxTextArea {
 	}
 
 	public class RedoAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 5731534997044895578L;
 		private Action externalAction = null;
 
 		public RedoAction() {

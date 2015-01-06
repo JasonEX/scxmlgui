@@ -26,7 +26,7 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	private UndoAction undoAction;
 	private RedoAction redoAction;
 	private JScrollPane scrollPane;
-	private static final String newline = "\n";
+//	private static final String newline = "\n";
 
 	@Override
 	public void setSize(Dimension d) {
@@ -84,6 +84,10 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	}
 
 	public class UndoAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7156999059691469107L;
 		private Action externalAction = null;
 
 		public UndoAction() {
@@ -116,6 +120,10 @@ public class UndoJTextField extends JTextField implements CaretListener {
 	}
 
 	public class RedoAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3712154389776276812L;
 		private Action externalAction = null;
 
 		public RedoAction() {

@@ -46,7 +46,7 @@ import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 
-import fr.lusis.scxml.subfsm.swing.util.CellSelector;
+import fr.lusis.scxml.subfsm.swing.utils.CellSelector;
 
 public class SCXMLElementEditor extends JDialog implements ActionListener,
 		WindowListener {

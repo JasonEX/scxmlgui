@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -16,11 +20,17 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
-import com.mxgraph.util.StringUtils;
 import com.mxgraph.util.mxResources;
+
+import fr.lusis.scxml.subfsm.utils.StringUtils;
 
 public class TextDialog extends JDialog implements ActionListener,
 		WindowListener {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2438240399120469312L;
+
 	public TextDialog(Window parent, String title, String content,
 			ModalityType modal) {
 		super(parent, modal);

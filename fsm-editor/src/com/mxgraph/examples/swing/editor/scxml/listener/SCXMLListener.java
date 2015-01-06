@@ -57,7 +57,7 @@ import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
 
-import fr.lusis.scxml.subfsm.swing.util.CellSelector;
+import fr.lusis.scxml.subfsm.swing.utils.CellSelector;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
 public class SCXMLListener extends JDialog implements ListSelectionListener,

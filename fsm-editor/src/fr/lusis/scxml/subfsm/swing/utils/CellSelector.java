@@ -1,4 +1,4 @@
-package fr.lusis.scxml.subfsm.swing.util;
+package fr.lusis.scxml.subfsm.swing.utils;
 
 import java.util.HashMap;
 import java.util.List;

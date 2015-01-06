@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.event.MouseEvent;
@@ -23,16 +27,18 @@ import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.swing.handler.mxConnectionHandler;
 import com.mxgraph.swing.handler.mxGraphHandler;
-import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxUtils;
 import com.mxgraph.view.mxGraph;
+import com.mxgraph.view.mxGraphView;
+
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorEvent;
 
 /**
  * 
  */
-public class SCXMLGraphComponent extends mxGraphComponent // implements
-															// ComponentListener
+//implementsComponentListener
+public class SCXMLGraphComponent extends mxGraphComponent 
 {
 
 	/**
@@ -139,10 +145,12 @@ public class SCXMLGraphComponent extends mxGraphComponent // implements
 		scxmlNodes.clear();
 	}
 
-	public void validateGraph() {
+	public String validateGraph() {
 		mxGraphModel model = (mxGraphModel) graph.getModel();
-		model.fireEvent(new mxEventObject(mxEvent.REQUEST_VALIDATION, "root",
+		model.fireEvent(new mxEventObject(SCXMLEditorEvent.REQUEST_VALIDATION, "root",
 				model.getRoot()));
+		
+		return super.validateGraph();
 	}
 
 	/*
@@ -151,7 +159,6 @@ public class SCXMLGraphComponent extends mxGraphComponent // implements
 	 * @see
 	 * com.mxgraph.swing.mxGraphComponent#getSiblingsOfCell(java.lang.Object)
 	 */
-	@Override
 	public Collection<Object> getSiblingsOfCell(Object c) {
 		ArrayList<Object> ret = new ArrayList<Object>();
 		ret.add(c);
@@ -185,6 +192,12 @@ public class SCXMLGraphComponent extends mxGraphComponent // implements
 		return new SCXMLGraphHandler(this);
 	}
 
+	public Point unscaledGraphCoordinates(Point p) {
+		mxGraphView view = graph.getView();
+		double scale = view.getScale();
+		return new Point((int)Math.round(p.x/scale), (int)Math.round(p.y/scale));
+	}
+	
 	/*
 	 * @Override public void componentHidden(ComponentEvent e) { // TODO
 	 * Auto-generated method stub

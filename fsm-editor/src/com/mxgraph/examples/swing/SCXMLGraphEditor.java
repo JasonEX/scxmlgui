@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -104,7 +108,6 @@ import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.swing.mxGraphOutline;
 import com.mxgraph.swing.handler.mxKeyboardHandler;
 import com.mxgraph.swing.handler.mxRubberband;
-import com.mxgraph.util.StringUtils;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
@@ -116,6 +119,8 @@ import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxMultiplicity;
+
+import fr.lusis.scxml.subfsm.utils.StringUtils;
 
 public class SCXMLGraphEditor extends JPanel {
 	public Preferences preferences = Preferences.userRoot();
