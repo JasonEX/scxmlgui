@@ -1,6 +1,5 @@
 /**
- * $Id: mxPerimeter.java,v 1.18 2009/12/28 12:12:54 gaudenz Exp $
- * Copyright (c) 2007, Gaudenz Alder
+ * Copyright (c) 2007-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.view;
 
@@ -11,7 +10,7 @@ import com.mxgraph.util.mxUtils;
 
 /**
  * Provides various perimeter functions to be used in a style
- * as the value of mxConstants.STYLE_PERIMETER. Alternatevly, the mxConstants.
+ * as the value of mxConstants.STYLE_PERIMETER. Alternately, the mxConstants.
  * PERIMETER_* constants can be used to reference a perimeter via the
  * mxStyleRegistry.
  */
@@ -25,26 +24,21 @@ public class mxPerimeter
 	{
 
 		/**
-		 * Implements a perimeter function. The edgeState and
-		 * terminalState refer to the states of the edge and terminal cells.
-		 * The edge state may be null if the perimeter is used for inserting new
-		 * edges. isSource is true if the given terminal is the source of the edge,
-		 * and next refers to the nearest point on the edge. Note that you should
-		 * not read the points from the edgeState at this point.
+		 * Implements a perimeter function.
 		 * 
 		 * @param bounds Rectangle that represents the absolute bounds of the
 		 * vertex.
-		 * @param edgeState Cell state that represents the incoming or outgoing
-		 * edge.
-		 * @param terminalState Cell state that represents the vertex.
-		 * @param isSource Boolean that specifies if the vertex is the source
-		 * terminal.
+		 * @param vertex Cell state that represents the vertex.
 		 * @param next Point that represents the nearest neighbour point on the
 		 * given edge.
+		 * @param orthogonal Boolean that specifies if the orthogonal projection onto
+		 * the perimeter should be returned. If this is false then the intersection
+		 * of the perimeter and the line between the next and the center point is
+		 * returned.
 		 * @return Returns the perimeter point.
 		 */
-		mxPoint apply(mxRectangle bounds, mxCellState edgeState,
-				mxCellState terminalState, boolean isSource, mxPoint next);
+		mxPoint apply(mxRectangle bounds, mxCellState vertex, mxPoint next,
+				boolean orthogonal);
 
 	}
 
@@ -55,10 +49,10 @@ public class mxPerimeter
 	{
 
 		/* (non-Javadoc)
-		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply(com.mxgraph.utils.mxRectangle, com.mxgraph.view.mxCellState, com.mxgraph.view.mxCellState, boolean, com.mxgraph.utils.mxPoint)
+		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply
 		 */
-		public mxPoint apply(mxRectangle bounds, mxCellState edgeState,
-				mxCellState terminalState, boolean isSource, mxPoint next)
+		public mxPoint apply(mxRectangle bounds, mxCellState vertex,
+				mxPoint next, boolean orthogonal)
 		{
 			double cx = bounds.getCenterX();
 			double cy = bounds.getCenterY();
@@ -97,9 +91,7 @@ public class mxPerimeter
 				p.setX(cx + bounds.getHeight() * Math.tan(beta) / 2);
 			}
 
-			if (edgeState != null
-					&& edgeState.view.graph.isOrthogonal(edgeState,
-							terminalState))
+			if (orthogonal)
 			{
 				if (next.getX() >= bounds.getX()
 						&& next.getX() <= bounds.getX() + bounds.getWidth())
@@ -143,10 +135,10 @@ public class mxPerimeter
 	{
 
 		/* (non-Javadoc)
-		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply(com.mxgraph.utils.mxRectangle, com.mxgraph.view.mxCellState, com.mxgraph.view.mxCellState, boolean, com.mxgraph.utils.mxPoint)
+		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply
 		 */
-		public mxPoint apply(mxRectangle bounds, mxCellState edgeState,
-				mxCellState terminalState, boolean isSource, mxPoint next)
+		public mxPoint apply(mxRectangle bounds, mxCellState vertex,
+				mxPoint next, boolean orthogonal)
 		{
 			double x = bounds.getX();
 			double y = bounds.getY();
@@ -162,14 +154,14 @@ public class mxPerimeter
 			double dx = px - cx;
 			double dy = py - cy;
 
-			if (dx == 0)
+			if (dx == 0 && dy != 0)
 			{
 				return new mxPoint(cx, cy + b * dy / Math.abs(dy));
 			}
-			
-			boolean orthogonal = edgeState != null
-					&& edgeState.view.graph.isOrthogonal(edgeState,
-							terminalState);
+			else if (dx == 0 && dy == 0)
+			{
+				return new mxPoint(px, py);
+			}
 
 			if (orthogonal)
 			{
@@ -256,10 +248,10 @@ public class mxPerimeter
 	{
 
 		/* (non-Javadoc)
-		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply(com.mxgraph.utils.mxRectangle, com.mxgraph.view.mxCellState, com.mxgraph.view.mxCellState, boolean, com.mxgraph.utils.mxPoint)
+		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply
 		 */
-		public mxPoint apply(mxRectangle bounds, mxCellState edgeState,
-				mxCellState terminalState, boolean isSource, mxPoint next)
+		public mxPoint apply(mxRectangle bounds, mxCellState vertex,
+				mxPoint next, boolean orthogonal)
 		{
 			double x = bounds.getX();
 			double y = bounds.getY();
@@ -299,9 +291,7 @@ public class mxPerimeter
 			double tx = cx;
 			double ty = cy;
 
-			if (edgeState != null
-					&& edgeState.view.graph.isOrthogonal(edgeState,
-							terminalState))
+			if (orthogonal)
 			{
 				if (px >= x && px <= x + w)
 				{
@@ -350,15 +340,11 @@ public class mxPerimeter
 		/* (non-Javadoc)
 		 * @see com.mxgraph.view.mxPerimeter.mxPerimeterFunction#apply(com.mxgraph.utils.mxRectangle, com.mxgraph.view.mxCellState, com.mxgraph.view.mxCellState, boolean, com.mxgraph.utils.mxPoint)
 		 */
-		public mxPoint apply(mxRectangle bounds, mxCellState edgeState,
-				mxCellState terminalState, boolean isSource, mxPoint next)
+		public mxPoint apply(mxRectangle bounds, mxCellState vertex,
+				mxPoint next, boolean orthogonal)
 		{
-			boolean orthogonal = edgeState != null
-					&& edgeState.view.graph.isOrthogonal(edgeState,
-							terminalState);
-
-			Object direction = (terminalState != null) ? mxUtils.getString(
-					terminalState.style, mxConstants.STYLE_DIRECTION,
+			Object direction = (vertex != null) ? mxUtils.getString(
+					vertex.style, mxConstants.STYLE_DIRECTION,
 					mxConstants.DIRECTION_EAST) : mxConstants.DIRECTION_EAST;
 			boolean vertical = direction.equals(mxConstants.DIRECTION_NORTH)
 					|| direction.equals(mxConstants.DIRECTION_SOUTH);
@@ -494,8 +480,8 @@ public class mxPerimeter
 				else
 				{
 					result = mxUtils.intersection(next.getX(), next.getY(), cx,
-							cy, corner.getX(), corner.getY(), end.getX(), end
-									.getY());
+							cy, corner.getX(), corner.getY(), end.getX(),
+							end.getY());
 				}
 			}
 
@@ -509,4 +495,440 @@ public class mxPerimeter
 
 	};
 
+	/**
+	 * Describes a hexagon perimeter. See RectanglePerimeter
+	 * for a description of the parameters.
+	 */
+	public static mxPerimeterFunction HexagonPerimeter = new mxPerimeterFunction()
+	{
+		public mxPoint apply(mxRectangle bounds, mxCellState vertex,
+				mxPoint next, boolean orthogonal)
+		{
+			double x = bounds.getX();
+			double y = bounds.getY();
+			double w = bounds.getWidth();
+			double h = bounds.getHeight();
+
+			double cx = bounds.getCenterX();
+			double cy = bounds.getCenterY();
+			double px = next.getX();
+			double py = next.getY();
+			double dx = px - cx;
+			double dy = py - cy;
+			double alpha = -Math.atan2(dy, dx);
+			double pi = Math.PI;
+			double pi2 = Math.PI / 2;
+
+			mxPoint result = new mxPoint(cx, cy);
+
+			Object direction = (vertex != null) ? mxUtils.getString(
+					vertex.style, mxConstants.STYLE_DIRECTION,
+					mxConstants.DIRECTION_EAST) : mxConstants.DIRECTION_EAST;
+			boolean vertical = direction.equals(mxConstants.DIRECTION_NORTH)
+					|| direction.equals(mxConstants.DIRECTION_SOUTH);
+			mxPoint a = new mxPoint();
+			mxPoint b = new mxPoint();
+
+			//Only consider corrects quadrants for the orthogonal case.
+			if ((px < x) && (py < y) || (px < x) && (py > y + h)
+					|| (px > x + w) && (py < y) || (px > x + w) && (py > y + h))
+			{
+				orthogonal = false;
+			}
+
+			if (orthogonal)
+			{
+				if (vertical)
+				{
+					//Special cases where intersects with hexagon corners
+					if (px == cx)
+					{
+						if (py <= y)
+						{
+							return new mxPoint(cx, y);
+						}
+						else if (py >= y + h)
+						{
+							return new mxPoint(cx, y + h);
+						}
+					}
+					else if (px < x)
+					{
+						if (py == y + h / 4)
+						{
+							return new mxPoint(x, y + h / 4);
+						}
+						else if (py == y + 3 * h / 4)
+						{
+							return new mxPoint(x, y + 3 * h / 4);
+						}
+					}
+					else if (px > x + w)
+					{
+						if (py == y + h / 4)
+						{
+							return new mxPoint(x + w, y + h / 4);
+						}
+						else if (py == y + 3 * h / 4)
+						{
+							return new mxPoint(x + w, y + 3 * h / 4);
+						}
+					}
+					else if (px == x)
+					{
+						if (py < cy)
+						{
+							return new mxPoint(x, y + h / 4);
+						}
+						else if (py > cy)
+						{
+							return new mxPoint(x, y + 3 * h / 4);
+						}
+					}
+					else if (px == x + w)
+					{
+						if (py < cy)
+						{
+							return new mxPoint(x + w, y + h / 4);
+						}
+						else if (py > cy)
+						{
+							return new mxPoint(x + w, y + 3 * h / 4);
+						}
+					}
+					if (py == y)
+					{
+						return new mxPoint(cx, y);
+					}
+					else if (py == y + h)
+					{
+						return new mxPoint(cx, y + h);
+					}
+
+					if (px < cx)
+					{
+						if ((py > y + h / 4) && (py < y + 3 * h / 4))
+						{
+							a = new mxPoint(x, y);
+							b = new mxPoint(x, y + h);
+						}
+						else if (py < y + h / 4)
+						{
+							a = new mxPoint(x - (int) (0.5 * w), y
+									+ (int) (0.5 * h));
+							b = new mxPoint(x + w, y - (int) (0.25 * h));
+						}
+						else if (py > y + 3 * h / 4)
+						{
+							a = new mxPoint(x - (int) (0.5 * w), y
+									+ (int) (0.5 * h));
+							b = new mxPoint(x + w, y + (int) (1.25 * h));
+						}
+					}
+					else if (px > cx)
+					{
+						if ((py > y + h / 4) && (py < y + 3 * h / 4))
+						{
+							a = new mxPoint(x + w, y);
+							b = new mxPoint(x + w, y + h);
+						}
+						else if (py < y + h / 4)
+						{
+							a = new mxPoint(x, y - (int) (0.25 * h));
+							b = new mxPoint(x + (int) (1.5 * w), y
+									+ (int) (0.5 * h));
+						}
+						else if (py > y + 3 * h / 4)
+						{
+							a = new mxPoint(x + (int) (1.5 * w), y
+									+ (int) (0.5 * h));
+							b = new mxPoint(x, y + (int) (1.25 * h));
+						}
+					}
+
+				}
+				else
+				{
+					//Special cases where intersects with hexagon corners
+					if (py == cy)
+					{
+						if (px <= x)
+						{
+							return new mxPoint(x, y + h / 2);
+						}
+						else if (px >= x + w)
+						{
+							return new mxPoint(x + w, y + h / 2);
+						}
+					}
+					else if (py < y)
+					{
+						if (px == x + w / 4)
+						{
+							return new mxPoint(x + w / 4, y);
+						}
+						else if (px == x + 3 * w / 4)
+						{
+							return new mxPoint(x + 3 * w / 4, y);
+						}
+					}
+					else if (py > y + h)
+					{
+						if (px == x + w / 4)
+						{
+							return new mxPoint(x + w / 4, y + h);
+						}
+						else if (px == x + 3 * w / 4)
+						{
+							return new mxPoint(x + 3 * w / 4, y + h);
+						}
+					}
+					else if (py == y)
+					{
+						if (px < cx)
+						{
+							return new mxPoint(x + w / 4, y);
+						}
+						else if (px > cx)
+						{
+							return new mxPoint(x + 3 * w / 4, y);
+						}
+					}
+					else if (py == y + h)
+					{
+						if (px < cx)
+						{
+							return new mxPoint(x + w / 4, y + h);
+						}
+						else if (py > cy)
+						{
+							return new mxPoint(x + 3 * w / 4, y + h);
+						}
+					}
+					if (px == x)
+					{
+						return new mxPoint(x, cy);
+					}
+					else if (px == x + w)
+					{
+						return new mxPoint(x + w, cy);
+					}
+
+					if (py < cy)
+					{
+						if ((px > x + w / 4) && (px < x + 3 * w / 4))
+						{
+							a = new mxPoint(x, y);
+							b = new mxPoint(x + w, y);
+						}
+						else if (px < x + w / 4)
+						{
+							a = new mxPoint(x - (int) (0.25 * w), y + h);
+							b = new mxPoint(x + (int) (0.5 * w), y
+									- (int) (0.5 * h));
+						}
+						else if (px > x + 3 * w / 4)
+						{
+							a = new mxPoint(x + (int) (0.5 * w), y
+									- (int) (0.5 * h));
+							b = new mxPoint(x + (int) (1.25 * w), y + h);
+						}
+					}
+					else if (py > cy)
+					{
+						if ((px > x + w / 4) && (px < x + 3 * w / 4))
+						{
+							a = new mxPoint(x, y + h);
+							b = new mxPoint(x + w, y + h);
+						}
+						else if (px < x + w / 4)
+						{
+							a = new mxPoint(x - (int) (0.25 * w), y);
+							b = new mxPoint(x + (int) (0.5 * w), y
+									+ (int) (1.5 * h));
+						}
+						else if (px > x + 3 * w / 4)
+						{
+							a = new mxPoint(x + (int) (0.5 * w), y
+									+ (int) (1.5 * h));
+							b = new mxPoint(x + (int) (1.25 * w), y);
+						}
+					}
+				}
+
+				double tx = cx;
+				double ty = cy;
+
+				if (px >= x && px <= x + w)
+				{
+					tx = px;
+					if (py < cy)
+					{
+						ty = y + h;
+					}
+					else
+					{
+						ty = y;
+					}
+				}
+				else if (py >= y && py <= y + h)
+				{
+					ty = py;
+					if (px < cx)
+					{
+						tx = x + w;
+					}
+					else
+					{
+						tx = x;
+					}
+				}
+
+				result = mxUtils.intersection(tx, ty, next.getX(), next.getY(),
+						a.getX(), a.getY(), b.getX(), b.getY());
+			}
+			else
+			{
+				if (vertical)
+				{
+					double beta = Math.atan2(h / 4, w / 2);
+
+					//Special cases where intersects with hexagon corners
+					if (alpha == beta)
+					{
+						return new mxPoint(x + w, y + (int) (0.25 * h));
+					}
+					else if (alpha == pi2)
+					{
+						return new mxPoint(x + (int) (0.5 * w), y);
+					}
+					else if (alpha == (pi - beta))
+					{
+						return new mxPoint(x, y + (int) (0.25 * h));
+					}
+					else if (alpha == -beta)
+					{
+						return new mxPoint(x + w, y + (int) (0.75 * h));
+					}
+					else if (alpha == (-pi2))
+					{
+						return new mxPoint(x + (int) (0.5 * w), y + h);
+					}
+					else if (alpha == (-pi + beta))
+					{
+						return new mxPoint(x, y + (int) (0.75 * h));
+					}
+
+					if ((alpha < beta) && (alpha > -beta))
+					{
+						a = new mxPoint(x + w, y);
+						b = new mxPoint(x + w, y + h);
+					}
+					else if ((alpha > beta) && (alpha < pi2))
+					{
+						a = new mxPoint(x, y - (int) (0.25 * h));
+						b = new mxPoint(x + (int) (1.5 * w), y
+								+ (int) (0.5 * h));
+					}
+					else if ((alpha > pi2) && (alpha < (pi - beta)))
+					{
+						a = new mxPoint(x - (int) (0.5 * w), y
+								+ (int) (0.5 * h));
+						b = new mxPoint(x + w, y - (int) (0.25 * h));
+					}
+					else if (((alpha > (pi - beta)) && (alpha <= pi))
+							|| ((alpha < (-pi + beta)) && (alpha >= -pi)))
+					{
+						a = new mxPoint(x, y);
+						b = new mxPoint(x, y + h);
+					}
+					else if ((alpha < -beta) && (alpha > -pi2))
+					{
+						a = new mxPoint(x + (int) (1.5 * w), y
+								+ (int) (0.5 * h));
+						b = new mxPoint(x, y + (int) (1.25 * h));
+					}
+					else if ((alpha < -pi2) && (alpha > (-pi + beta)))
+					{
+						a = new mxPoint(x - (int) (0.5 * w), y
+								+ (int) (0.5 * h));
+						b = new mxPoint(x + w, y + (int) (1.25 * h));
+					}
+				}
+				else
+				{
+					double beta = Math.atan2(h / 2, w / 4);
+
+					//Special cases where intersects with hexagon corners
+					if (alpha == beta)
+					{
+						return new mxPoint(x + (int) (0.75 * w), y);
+					}
+					else if (alpha == (pi - beta))
+					{
+						return new mxPoint(x + (int) (0.25 * w), y);
+					}
+					else if ((alpha == pi) || (alpha == -pi))
+					{
+						return new mxPoint(x, y + (int) (0.5 * h));
+					}
+					else if (alpha == 0)
+					{
+						return new mxPoint(x + w, y + (int) (0.5 * h));
+					}
+					else if (alpha == -beta)
+					{
+						return new mxPoint(x + (int) (0.75 * w), y + h);
+					}
+					else if (alpha == (-pi + beta))
+					{
+						return new mxPoint(x + (int) (0.25 * w), y + h);
+					}
+
+					if ((alpha > 0) && (alpha < beta))
+					{
+						a = new mxPoint(x + (int) (0.5 * w), y
+								- (int) (0.5 * h));
+						b = new mxPoint(x + (int) (1.25 * w), y + h);
+					}
+					else if ((alpha > beta) && (alpha < (pi - beta)))
+					{
+						a = new mxPoint(x, y);
+						b = new mxPoint(x + w, y);
+					}
+					else if ((alpha > (pi - beta)) && (alpha < pi))
+					{
+						a = new mxPoint(x - (int) (0.25 * w), y + h);
+						b = new mxPoint(x + (int) (0.5 * w), y
+								- (int) (0.5 * h));
+					}
+					else if ((alpha < 0) && (alpha > -beta))
+					{
+						a = new mxPoint(x + (int) (0.5 * w), y
+								+ (int) (1.5 * h));
+						b = new mxPoint(x + (int) (1.25 * w), y);
+					}
+					else if ((alpha < -beta) && (alpha > (-pi + beta)))
+					{
+						a = new mxPoint(x, y + h);
+						b = new mxPoint(x + w, y + h);
+					}
+					else if ((alpha < (-pi + beta)) && (alpha > -pi))
+					{
+						a = new mxPoint(x - (int) (0.25 * w), y);
+						b = new mxPoint(x + (int) (0.5 * w), y
+								+ (int) (1.5 * h));
+					}
+				}
+
+				result = mxUtils.intersection(cx, cy, next.getX(), next.getY(),
+						a.getX(), a.getY(), b.getX(), b.getY());
+			}
+			if (result == null)
+			{
+				return new mxPoint(cx, cy);
+			}
+			return result;
+		}
+	};
 }

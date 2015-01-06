@@ -1,6 +1,8 @@
 package com.mxgraph.canvas;
 
 import java.awt.Point;
+import java.awt.image.BufferedImage;
+import java.util.Hashtable;
 import java.util.Map;
 
 import com.mxgraph.util.mxConstants;
@@ -8,6 +10,11 @@ import com.mxgraph.util.mxUtils;
 
 public abstract class mxBasicCanvas implements mxICanvas
 {
+
+	/**
+	 * Specifies if image aspect should be preserved in drawImage. Default is true.
+	 */
+	public static boolean PRESERVE_IMAGE_ASPECT = true;
 
 	/**
 	 * Defines the default value for the imageBasePath in all GDI canvases.
@@ -37,15 +44,20 @@ public abstract class mxBasicCanvas implements mxICanvas
 	protected boolean drawLabels = true;
 
 	/**
-	 * 
+	 * Cache for images.
+	 */
+	protected Hashtable<String, BufferedImage> imageCache = new Hashtable<String, BufferedImage>();
+
+	/**
+	 * Sets the current translate.
 	 */
 	public void setTranslate(int dx, int dy)
 	{
-		translate.setLocation(dx, dy);
+		translate = new Point(dx, dy);
 	}
 
 	/**
-	 * 
+	 * Returns the current translate.
 	 */
 	public Point getTranslate()
 	{
@@ -101,14 +113,44 @@ public abstract class mxBasicCanvas implements mxICanvas
 	}
 
 	/**
+	 * Returns an image instance for the given URL. If the URL has
+	 * been loaded before than an instance of the same instance is
+	 * returned as in the previous call.
+	 */
+	public BufferedImage loadImage(String image)
+	{
+		BufferedImage img = imageCache.get(image);
+
+		if (img == null)
+		{
+			img = mxUtils.loadImage(image);
+
+			if (img != null)
+			{
+				imageCache.put(image, img);
+			}
+		}
+
+		return img;
+	}
+
+	/**
+	 * 
+	 */
+	public void flushImageCache()
+	{
+		imageCache.clear();
+	}
+
+	/**
 	 * Gets the image path from the given style. If the path is relative (does
 	 * not start with a slash) then it is appended to the imageBasePath.
 	 */
-	protected String getImageForStyle(Map<String, Object> style)
+	public String getImageForStyle(Map<String, Object> style)
 	{
 		String filename = mxUtils.getString(style, mxConstants.STYLE_IMAGE);
 
-		if (filename != null && !filename.startsWith("/"))
+		if (filename != null && !filename.startsWith("/") && !filename.startsWith("file:/"))
 		{
 			filename = imageBasePath + filename;
 		}

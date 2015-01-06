@@ -1,6 +1,5 @@
 /**
- * $Id: mxGraphHandler.java,v 1.54 2010/01/26 13:53:37 gaudenz Exp $
- * Copyright (c) 2008, Gaudenz Alder
+ * Copyright (c) 2008-2012, JGraph Ltd
  * 
  * Known issue: Drag image size depends on the initial position and may sometimes
  * not align with the grid when dragging. This is because the rounding of the width
@@ -9,10 +8,11 @@
  */
 package com.mxgraph.swing.handler;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Graphics;
-import java.awt.GraphicsEnvironment;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -30,7 +30,8 @@ import java.awt.dnd.DropTargetEvent;
 import java.awt.dnd.DropTargetListener;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
-import java.util.Collection;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.TooManyListenersException;
 
 import javax.swing.ImageIcon;
@@ -38,21 +39,22 @@ import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 
-import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.swing.mxGraphComponent.mxMouseRedirector;
-import com.mxgraph.swing.util.CellSelector;
 import com.mxgraph.swing.util.mxGraphTransferable;
-import com.mxgraph.swing.util.mxMouseControl;
+import com.mxgraph.swing.util.mxMouseAdapter;
+import com.mxgraph.swing.util.mxSwingConstants;
 import com.mxgraph.util.mxCellRenderer;
-import com.mxgraph.util.mxConstants;
+import com.mxgraph.util.mxEvent;
+import com.mxgraph.util.mxEventObject;
+import com.mxgraph.util.mxEventSource.mxIEventListener;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
+import com.mxgraph.util.mxUtils;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 
-public class mxGraphHandler extends mxMouseControl implements
+public class mxGraphHandler extends mxMouseAdapter implements
 		DropTargetListener
 {
 
@@ -62,14 +64,29 @@ public class mxGraphHandler extends mxMouseControl implements
 	private static final long serialVersionUID = 3241109976696510225L;
 
 	/**
-	 * 
+	 * Default is Cursor.DEFAULT_CURSOR.
+	 */
+	public static Cursor DEFAULT_CURSOR = new Cursor(Cursor.DEFAULT_CURSOR);
+
+	/**
+	 * Default is Cursor.MOVE_CURSOR.
 	 */
 	public static Cursor MOVE_CURSOR = new Cursor(Cursor.MOVE_CURSOR);
+
+	/**
+	 * Default is Cursor.HAND_CURSOR.
+	 */
+	public static Cursor FOLD_CURSOR = new Cursor(Cursor.HAND_CURSOR);
 
 	/**
 	 * Reference to the enclosing graph component.
 	 */
 	protected mxGraphComponent graphComponent;
+
+	/**
+	 * Specifies if the handler is enabled. Default is true.
+	 */
+	protected boolean enabled = true;
 
 	/**
 	 * Specifies if cloning by control-drag is enabled. Default is true.
@@ -87,9 +104,25 @@ public class mxGraphHandler extends mxMouseControl implements
 	protected boolean selectEnabled = true;
 
 	/**
+	 * Specifies if the cell marker should be called (for splitting edges and
+	 * dropping cells into groups). Default is true.
+	 */
+	protected boolean markerEnabled = true;
+
+	/**
 	 * Specifies if cells may be moved out of their parents. Default is true.
 	 */
 	protected boolean removeCellsFromParent = true;
+
+	/**
+	 * 
+	 */
+	protected mxMovePreview movePreview;
+
+	/**
+	 * Specifies if live preview should be used if possible. Default is false.
+	 */
+	protected boolean livePreview = false;
 
 	/**
 	 * Specifies if an image should be used for preview. Default is true.
@@ -165,106 +198,229 @@ public class mxGraphHandler extends mxMouseControl implements
 	protected transient mxRectangle transferBounds;
 
 	/**
+	 * 
+	 */
+	protected transient boolean visible = false;
+
+	/**
+	 * 
+	 */
+	protected transient Rectangle previewBounds = null;
+
+	/**
 	 * Workaround for alt-key-state not correct in mouseReleased. Note: State
 	 * of the alt-key is not available during drag-and-drop.
 	 */
-	private transient boolean gridEnabledEvent = false;
+	protected transient boolean gridEnabledEvent = false;
 
 	/**
 	 * Workaround for shift-key-state not correct in mouseReleased.
 	 */
 	protected transient boolean constrainedEvent = false;
 
-	private CellSelector highlighter=null;
-	
+	/**
+	 * Reference to the current drop target.
+	 */
+	protected transient DropTarget currentDropTarget = null;
+
 	/**
 	 * 
 	 * @param graphComponent
 	 */
 	public mxGraphHandler(final mxGraphComponent graphComponent)
 	{
-		if (!GraphicsEnvironment.isHeadless()) {
-			this.graphComponent = graphComponent;
-			highlighter=new CellSelector(graphComponent,false);
-			marker = createMarker();
-	
-			// Adds component for rendering the handles (preview is separate)
-			graphComponent.getGraphControl().add(this, 0);
-	
-			// Listens to all mouse events on the rendering control
-			graphComponent.getGraphControl().addMouseListener(this);
-			graphComponent.getGraphControl().addMouseMotionListener(this);
-	
-			// Redirects events from component to rendering control so
-			// that the event handling order is maintained if other controls
-			// such as overlays are added to the component hierarchy and
-			// consume events before they reach the rendering control
-			mxMouseRedirector redirector = new mxMouseRedirector(graphComponent);
-			addMouseMotionListener(redirector);
-			addMouseListener(redirector);
-	
-			// Drag target creates preview image
-			DragGestureListener dragGestureListener = new DragGestureListener()
+		this.graphComponent = graphComponent;
+		marker = createMarker();
+		movePreview = createMovePreview();
+
+		// Installs the paint handler
+		graphComponent.addListener(mxEvent.AFTER_PAINT, new mxIEventListener()
+		{
+			public void invoke(Object sender, mxEventObject evt)
 			{
-				public void dragGestureRecognized(DragGestureEvent e)
+				Graphics g = (Graphics) evt.getProperty("g");
+				paint(g);
+			}
+		});
+
+		// Listens to all mouse events on the rendering control
+		graphComponent.getGraphControl().addMouseListener(this);
+		graphComponent.getGraphControl().addMouseMotionListener(this);
+
+		// Drag target creates preview image
+		installDragGestureHandler();
+
+		// Listens to dropped graph cells
+		installDropTargetHandler();
+
+		// Listens to changes of the transferhandler
+		graphComponent.addPropertyChangeListener(new PropertyChangeListener()
+		{
+			public void propertyChange(PropertyChangeEvent evt)
+			{
+				if (evt.getPropertyName().equals("transferHandler"))
 				{
-					if (graphComponent.isDragEnabled() && first != null)
+					if (currentDropTarget != null)
 					{
-						final TransferHandler th = graphComponent
-								.getTransferHandler();
-	
-						if (th instanceof mxGraphTransferHandler)
+						currentDropTarget
+								.removeDropTargetListener(mxGraphHandler.this);
+					}
+
+					installDropTargetHandler();
+				}
+			}
+		});
+
+		setVisible(false);
+	}
+
+	/**
+	 * 
+	 */
+	protected void installDragGestureHandler()
+	{
+		DragGestureListener dragGestureListener = new DragGestureListener()
+		{
+			public void dragGestureRecognized(DragGestureEvent e)
+			{
+				if (graphComponent.isDragEnabled() && first != null)
+				{
+					final TransferHandler th = graphComponent
+							.getTransferHandler();
+
+					if (th instanceof mxGraphTransferHandler)
+					{
+						final mxGraphTransferable t = (mxGraphTransferable) ((mxGraphTransferHandler) th)
+								.createTransferable(graphComponent);
+
+						if (t != null)
 						{
-							final mxGraphTransferable t = (mxGraphTransferable) ((mxGraphTransferHandler) th)
-									.createTransferable(graphComponent);
-	
-							if (t != null)
-							{
-								e.startDrag(null, mxConstants.EMPTY_IMAGE,
-										new Point(), t, new DragSourceAdapter()
+							e.startDrag(null, mxSwingConstants.EMPTY_IMAGE,
+									new Point(), t, new DragSourceAdapter()
+									{
+
+										/**
+										 * 
+										 */
+										public void dragDropEnd(
+												DragSourceDropEvent dsde)
 										{
-	
-											public void dragDropEnd(
-													DragSourceDropEvent dsde)
-											{
-												((mxGraphTransferHandler) th)
-														.exportDone(
-																graphComponent,
-																t,
-																TransferHandler.NONE);
-												first = null;
-											}
-										});
-							}
+											((mxGraphTransferHandler) th)
+													.exportDone(
+															graphComponent,
+															t,
+															TransferHandler.NONE);
+											first = null;
+										}
+									});
 						}
 					}
 				}
-			};
-	
-			DragSource dragSource = new DragSource();
-			dragSource.createDefaultDragGestureRecognizer(graphComponent
-					.getGraphControl(), DnDConstants.ACTION_COPY_OR_MOVE,
-					dragGestureListener);
-	
-			// Listens to dropped graph cells
-			DropTarget dropTarget = graphComponent.getDropTarget();
-	
-			try
+			}
+		};
+
+		DragSource dragSource = new DragSource();
+		dragSource.createDefaultDragGestureRecognizer(graphComponent
+				.getGraphControl(),
+				(isCloneEnabled()) ? DnDConstants.ACTION_COPY_OR_MOVE
+						: DnDConstants.ACTION_MOVE, dragGestureListener);
+	}
+
+	/**
+	 * 
+	 */
+	protected void installDropTargetHandler()
+	{
+		DropTarget dropTarget = graphComponent.getDropTarget();
+
+		try
+		{
+			if (dropTarget != null)
 			{
-				if (dropTarget != null)
+				dropTarget.addDropTargetListener(this);
+				currentDropTarget = dropTarget;
+			}
+		}
+		catch (TooManyListenersException tmle)
+		{
+			// should not happen... swing drop target is multicast
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public boolean isVisible()
+	{
+		return visible;
+	}
+
+	/**
+	 * 
+	 */
+	public void setVisible(boolean value)
+	{
+		if (visible != value)
+		{
+			visible = value;
+
+			if (previewBounds != null)
+			{
+				graphComponent.getGraphControl().repaint(previewBounds);
+			}
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public void setPreviewBounds(Rectangle bounds)
+	{
+		if ((bounds == null && previewBounds != null)
+				|| (bounds != null && previewBounds == null)
+				|| (bounds != null && previewBounds != null && !bounds
+						.equals(previewBounds)))
+		{
+			Rectangle dirty = null;
+
+			if (isVisible())
+			{
+				dirty = previewBounds;
+
+				if (dirty != null)
 				{
-					dropTarget.addDropTargetListener(this);
+					dirty.add(bounds);
+				}
+				else
+				{
+					dirty = bounds;
 				}
 			}
-			catch (TooManyListenersException tmle)
+
+			previewBounds = bounds;
+
+			if (dirty != null)
 			{
-				// should not happen... swing drop target is multicast
+				graphComponent.getGraphControl().repaint(dirty.x - 1,
+						dirty.y - 1, dirty.width + 2, dirty.height + 2);
 			}
-	
-			setOpaque(false);
-			setVisible(false);
-			setBorder(mxConstants.PREVIEW_BORDER);
 		}
+	}
+
+	/**
+	 * 
+	 */
+	protected mxMovePreview createMovePreview()
+	{
+		return new mxMovePreview(graphComponent);
+	}
+
+	/**
+	 * 
+	 */
+	public mxMovePreview getMovePreview()
+	{
+		return movePreview;
 	}
 
 	/**
@@ -292,6 +448,7 @@ public class mxGraphHandler extends mxMouseControl implements
 			 */
 			public Object getCell(MouseEvent e)
 			{
+				mxIGraphModel model = graphComponent.getGraph().getModel();
 				TransferHandler th = graphComponent.getTransferHandler();
 				boolean isLocal = th instanceof mxGraphTransferHandler
 						&& ((mxGraphTransferHandler) th).isLocalDrag();
@@ -301,7 +458,22 @@ public class mxGraphHandler extends mxMouseControl implements
 				Object[] cells = (isLocal) ? graph.getSelectionCells()
 						: dragCells;
 				cell = graph.getDropTarget(cells, e.getPoint(), cell);
-				boolean clone = graphComponent.isCloneEvent(e) && cloneEnabled;
+
+				// Checks if parent is dropped into child
+				Object parent = cell;
+
+				while (parent != null)
+				{
+					if (mxUtils.contains(cells, parent))
+					{
+						return null;
+					}
+
+					parent = model.getParent(parent);
+				}
+
+				boolean clone = graphComponent.isCloneEvent(e)
+						&& isCloneEnabled();
 
 				if (isLocal && cell != null && cells.length > 0 && !clone
 						&& graph.getModel().getParent(cells[0]) == cell)
@@ -326,6 +498,22 @@ public class mxGraphHandler extends mxMouseControl implements
 	public mxGraphComponent getGraphComponent()
 	{
 		return graphComponent;
+	}
+
+	/**
+	 * 
+	 */
+	public boolean isEnabled()
+	{
+		return enabled;
+	}
+
+	/**
+	 * 
+	 */
+	public void setEnabled(boolean value)
+	{
+		enabled = value;
 	}
 
 	/**
@@ -363,6 +551,38 @@ public class mxGraphHandler extends mxMouseControl implements
 	/**
 	 * 
 	 */
+	public boolean isMarkerEnabled()
+	{
+		return markerEnabled;
+	}
+
+	/**
+	 * 
+	 */
+	public void setMarkerEnabled(boolean value)
+	{
+		markerEnabled = value;
+	}
+
+	/**
+	 * 
+	 */
+	public mxCellMarker getMarker()
+	{
+		return marker;
+	}
+
+	/**
+	 * 
+	 */
+	public void setMarker(mxCellMarker value)
+	{
+		marker = value;
+	}
+
+	/**
+	 * 
+	 */
 	public boolean isSelectEnabled()
 	{
 		return selectEnabled;
@@ -390,6 +610,22 @@ public class mxGraphHandler extends mxMouseControl implements
 	public void setRemoveCellsFromParent(boolean value)
 	{
 		removeCellsFromParent = value;
+	}
+
+	/**
+	 * 
+	 */
+	public boolean isLivePreview()
+	{
+		return livePreview;
+	}
+
+	/**
+	 * 
+	 */
+	public void setLivePreview(boolean value)
+	{
+		livePreview = value;
 	}
 
 	/**
@@ -430,53 +666,24 @@ public class mxGraphHandler extends mxMouseControl implements
 	public void updateDragImage(Object[] cells)
 	{
 		dragImage = null;
-		
+
 		if (cells != null && cells.length > 0)
 		{
-			Image img = mxCellRenderer.createBufferedImage(graphComponent
-					.getGraph(), cells, graphComponent.getGraph().getView()
-					.getScale(), null, graphComponent.isAntiAlias(), null,
+			Image img = mxCellRenderer.createBufferedImage(
+					graphComponent.getGraph(), cells, graphComponent.getGraph()
+							.getView().getScale(), null,
+					graphComponent.isAntiAlias(), null,
 					graphComponent.getCanvas());
-	
+
 			if (img != null)
 			{
 				dragImage = new ImageIcon(img);
-	
-				setSize(dragImage.getIconWidth(), dragImage.getIconHeight());
-				getParent().setComponentZOrder(this, 0);
+				previewBounds.setSize(dragImage.getIconWidth(),
+						dragImage.getIconHeight());
 			}
 		}
 	}
 
-	private Collection<Object> highlightedCells=null;
-	private void cancelHighlight() {
-		highlighter.unselectAll();
-	}
-	private void highlightEdgeUnderMouse(MouseEvent e) {
-		mxCell cell = (mxCell) graphComponent.getCellAt(e.getX(), e.getY(), false);
-		mxIGraphModel model = graphComponent.getGraph().getModel();
-		if (cell!=null) {
-			//System.out.println(cell);
-			if (cell.isEdge()) {
-				Collection<Object> siblings = graphComponent.getSiblingsOfCell(cell);
-				if ((highlightedCells!=null) && (siblings.size()==highlightedCells.size()) && siblings.containsAll(highlightedCells)) return;
-				else {
-					cancelHighlight();
-					for(Object s:siblings) {
-						//Object parent = model.getParent(s);
-						//model.add(parent,s,model.getChildCount(parent) - 1,true);
-						//model.highlightCell((mxCell) s, "#ff9b88","3","#ff0000","#ffffff");
-
-						highlighter.selectCell((mxCell) s);
-					}
-					highlightedCells=siblings;
-				}
-			}
-		} else if (highlightedCells!=null) {
-			cancelHighlight();
-			highlightedCells=null;
-		}
-	}
 	/**
 	 * 
 	 */
@@ -485,7 +692,7 @@ public class mxGraphHandler extends mxMouseControl implements
 		if (graphComponent.isEnabled() && isEnabled() && !e.isConsumed())
 		{
 			Cursor cursor = getCursor(e);
-			highlightEdgeUnderMouse(e);
+
 			if (cursor != null)
 			{
 				graphComponent.getGraphControl().setCursor(cursor);
@@ -493,8 +700,7 @@ public class mxGraphHandler extends mxMouseControl implements
 			}
 			else
 			{
-				graphComponent.getGraphControl().setCursor(
-						new Cursor(Cursor.DEFAULT_CURSOR));
+				graphComponent.getGraphControl().setCursor(DEFAULT_CURSOR);
 			}
 		}
 	}
@@ -513,10 +719,10 @@ public class mxGraphHandler extends mxMouseControl implements
 			if (cell != null)
 			{
 				if (graphComponent.isFoldingEnabled()
-						&& graphComponent.hitFoldingIcon(cell, e.getX(), e
-								.getY()))
+						&& graphComponent.hitFoldingIcon(cell, e.getX(),
+								e.getY()))
 				{
-					cursor = new Cursor(Cursor.HAND_CURSOR);
+					cursor = FOLD_CURSOR;
 				}
 				else if (graphComponent.getGraph().isCellMovable(cell))
 				{
@@ -567,12 +773,14 @@ public class mxGraphHandler extends mxMouseControl implements
 					{
 						mxGraph graph = graphComponent.getGraph();
 						double scale = graph.getView().getScale();
-
 						transferBounds = gt.getBounds();
-						mxRectangle bounds = new mxRectangle(transferBounds);
-						bounds.setWidth(bounds.getWidth() * scale + 1);
-						bounds.setHeight(bounds.getHeight() * scale + 1);
-						setBounds(bounds.getRectangle());
+						int w = (int) Math.ceil((transferBounds.getWidth() + 1)
+								* scale);
+						int h = (int) Math
+								.ceil((transferBounds.getHeight() + 1) * scale);
+						setPreviewBounds(new Rectangle(
+								(int) transferBounds.getX(),
+								(int) transferBounds.getY(), w, h));
 
 						if (imagePreview)
 						{
@@ -580,18 +788,21 @@ public class mxGraphHandler extends mxMouseControl implements
 							// but ignores movable state for non-local previews
 							if (isLocal)
 							{
-								updateDragImage(graph
-										.getMovableCells(dragCells));
+								if (!isLivePreview())
+								{
+									updateDragImage(graph
+											.getMovableCells(dragCells));
+								}
 							}
 							else
 							{
-								Object[] tmp = graphComponent.getImportableCells(dragCells);
+								Object[] tmp = graphComponent
+										.getImportableCells(dragCells);
 								updateDragImage(tmp);
-								
+
 								// Shows no drag icon if import is allowed but none
 								// of the cells can be imported
-								if (tmp == null ||
-									tmp.length == 0)
+								if (tmp == null || tmp.length == 0)
 								{
 									canImport = false;
 									e.rejectDrag();
@@ -604,7 +815,7 @@ public class mxGraphHandler extends mxMouseControl implements
 						setVisible(true);
 					}
 				}
-				
+
 				e.acceptDrag(TransferHandler.COPY_OR_MOVE);
 			}
 			catch (Exception ex)
@@ -628,7 +839,6 @@ public class mxGraphHandler extends mxMouseControl implements
 		if (graphComponent.isEnabled() && isEnabled() && !e.isConsumed()
 				&& !graphComponent.isForceMarqueeEvent(e))
 		{
-			//System.out.println("mouse pressed in mxGraphHandler");
 			cell = graphComponent.getCellAt(e.getX(), e.getY(), false);
 			initialCell = cell;
 
@@ -671,25 +881,30 @@ public class mxGraphHandler extends mxMouseControl implements
 	 */
 	public void start(MouseEvent e)
 	{
-		mxGraph graph = graphComponent.getGraph();
-
-		// Constructs an array with cells that are indeed movable
-		cells = getCells(initialCell);
-		cellBounds = graph.getView().getBounds(cells);
-
-		if (cellBounds != null)
+		if (isLivePreview())
 		{
-			// Keeps this handler in the foreground
-			getParent().setComponentZOrder(this, 0);
+			movePreview.start(e,
+					graphComponent.getGraph().getView().getState(initialCell));
+		}
+		else
+		{
+			mxGraph graph = graphComponent.getGraph();
 
-			// Updates the size of the graph handler that is in
-			// charge of painting all other handlers
-			bbox = graph.getView().getBoundingBox(cells);
+			// Constructs an array with cells that are indeed movable
+			cells = getCells(initialCell);
+			cellBounds = graph.getView().getBounds(cells);
 
-			Rectangle bounds = cellBounds.getRectangle();
-			bounds.width += 1;
-			bounds.height += 1;
-			setBounds(bounds);
+			if (cellBounds != null)
+			{
+				// Updates the size of the graph handler that is in
+				// charge of painting all other handlers
+				bbox = graph.getView().getBoundingBox(cells);
+
+				Rectangle bounds = cellBounds.getRectangle();
+				bounds.width += 1;
+				bounds.height += 1;
+				setPreviewBounds(bounds);
+			}
 		}
 
 		first = e.getPoint();
@@ -718,8 +933,8 @@ public class mxGraphHandler extends mxMouseControl implements
 			{
 				mxGraph graph = graphComponent.getGraph();
 				double scale = graph.getView().getScale();
-				Point pt = SwingUtilities.convertPoint(graphComponent, e
-						.getLocation(), graphComponent.getGraphControl());
+				Point pt = SwingUtilities.convertPoint(graphComponent,
+						e.getLocation(), graphComponent.getGraphControl());
 
 				pt = graphComponent.snapScaledPoint(new mxPoint(pt)).getPoint();
 				handler.setLocation(new Point(pt));
@@ -730,10 +945,8 @@ public class mxGraphHandler extends mxMouseControl implements
 				// Centers the preview image
 				if (centerPreview && transferBounds != null)
 				{
-					dx -= Math.round((double) transferBounds.getWidth() * scale
-							/ 2);
-					dy -= Math.round((double) transferBounds.getHeight()
-							* scale / 2);
+					dx -= Math.round(transferBounds.getWidth() * scale / 2);
+					dy -= Math.round(transferBounds.getHeight() * scale / 2);
 				}
 
 				// Sets the drop offset so that the location in the transfer
@@ -748,18 +961,16 @@ public class mxGraphHandler extends mxMouseControl implements
 				{
 					dx = (int) Math
 							.round((dragImage.getIconWidth() - 2 - transferBounds
-									.getWidth()
-									* scale) / 2);
+									.getWidth() * scale) / 2);
 					dy = (int) Math
 							.round((dragImage.getIconHeight() - 2 - transferBounds
-									.getHeight()
-									* scale) / 2);
+									.getHeight() * scale) / 2);
 					pt.translate(-dx, -dy);
 				}
 
-				if (!handler.isLocalDrag())
+				if (!handler.isLocalDrag() && previewBounds != null)
 				{
-					setLocation(pt.x, pt.y);
+					setPreviewBounds(new Rectangle(pt, previewBounds.getSize()));
 				}
 			}
 		}
@@ -774,8 +985,8 @@ public class mxGraphHandler extends mxMouseControl implements
 	 */
 	public Point convertPoint(Point pt)
 	{
-		pt = SwingUtilities.convertPoint(graphComponent, pt, graphComponent
-				.getGraphControl());
+		pt = SwingUtilities.convertPoint(graphComponent, pt,
+				graphComponent.getGraphControl());
 
 		pt.x -= graphComponent.getHorizontalScrollBar().getValue();
 		pt.y -= graphComponent.getVerticalScrollBar().getValue();
@@ -790,13 +1001,14 @@ public class mxGraphHandler extends mxMouseControl implements
 	{
 		// LATER: Check scrollborder, use scroll-increments, do not
 		// scroll when over ruler dragging from library
-		graphComponent.getGraphControl().scrollRectToVisible(
-				new Rectangle(e.getPoint()));
+		if (graphComponent.isAutoScroll())
+		{
+			graphComponent.getGraphControl().scrollRectToVisible(
+					new Rectangle(e.getPoint()));
+		}
 
 		if (!e.isConsumed())
 		{
-			//System.out.println("mouse dragged in mxGraphHandler");
-			
 			gridEnabledEvent = graphComponent.isGridEnabledEvent(e);
 			constrainedEvent = graphComponent.isConstrainedEvent(e);
 
@@ -814,35 +1026,60 @@ public class mxGraphHandler extends mxMouseControl implements
 					x = first.x;
 				}
 
-				e = new MouseEvent(e.getComponent(), e.getID(), e.getWhen(), e
-						.getModifiers(), x, y, e.getClickCount(), e
-						.isPopupTrigger(), e.getButton());
+				e = new MouseEvent(e.getComponent(), e.getID(), e.getWhen(),
+						e.getModifiers(), x, y, e.getClickCount(),
+						e.isPopupTrigger(), e.getButton());
 			}
 
-			if (isVisible())
+			if (isVisible() && isMarkerEnabled())
 			{
 				marker.process(e);
-			} 
+			}
 
-			if (first != null && cellBounds != null)
+			if (first != null)
 			{
-				double dx = e.getX() - first.x;
-				double dy = e.getY() - first.y;
-
-				setLocation(getPreviewLocation(e, gridEnabledEvent));
-
-				if (!isVisible() && graphComponent.isSignificant(dx, dy))
+				if (movePreview.isActive())
 				{
-					if (imagePreview && dragImage == null
-							&& !graphComponent.isDragEnabled())
+					double dx = e.getX() - first.x;
+					double dy = e.getY() - first.y;
+
+					if (graphComponent.isGridEnabledEvent(e))
 					{
-						updateDragImage(cells);
+						mxGraph graph = graphComponent.getGraph();
+
+						dx = graph.snap(dx);
+						dy = graph.snap(dy);
 					}
 
-					setVisible(true);
+					boolean clone = isCloneEnabled()
+							&& graphComponent.isCloneEvent(e);
+					movePreview.update(e, dx, dy, clone);
+					e.consume();
 				}
+				else if (cellBounds != null)
+				{
+					double dx = e.getX() - first.x;
+					double dy = e.getY() - first.y;
 
-				e.consume();
+					if (previewBounds != null)
+					{
+						setPreviewBounds(new Rectangle(getPreviewLocation(e,
+								gridEnabledEvent), previewBounds.getSize()));
+					}
+
+					if (!isVisible() && graphComponent.isSignificant(dx, dy))
+					{
+						if (imagePreview && dragImage == null
+								&& !graphComponent.isDragEnabled())
+						{
+							updateDragImage(cells);
+						}
+
+						setVisible(true);
+					}
+
+					e.consume();
+				}
 			}
 		}
 	}
@@ -905,6 +1142,7 @@ public class mxGraphHandler extends mxMouseControl implements
 		dragCells = null;
 		setVisible(false);
 		marker.reset();
+		reset();
 	}
 
 	/**
@@ -940,7 +1178,7 @@ public class mxGraphHandler extends mxMouseControl implements
 			double dx = 0;
 			double dy = 0;
 
-			if (first != null && cellBounds != null)
+			if (first != null && (cellBounds != null || movePreview.isActive()))
 			{
 				double scale = graph.getView().getScale();
 				mxPoint trans = graph.getView().getTranslate();
@@ -950,28 +1188,32 @@ public class mxGraphHandler extends mxMouseControl implements
 				dx = e.getX() - first.x;
 				dy = e.getY() - first.y;
 
-				double dxg = ((cellBounds.getX() + dx) / scale) - trans.getX();
-				double dyg = ((cellBounds.getY() + dy) / scale) - trans.getY();
-
-				if (gridEnabledEvent)
+				if (cellBounds != null)
 				{
-					dxg = graph.snap(dxg);
-					dyg = graph.snap(dyg);
+					double dxg = ((cellBounds.getX() + dx) / scale)
+							- trans.getX();
+					double dyg = ((cellBounds.getY() + dy) / scale)
+							- trans.getY();
+
+					if (gridEnabledEvent)
+					{
+						dxg = graph.snap(dxg);
+						dyg = graph.snap(dyg);
+					}
+
+					double x = ((dxg + trans.getX()) * scale) + (bbox.getX())
+							- (cellBounds.getX());
+					double y = ((dyg + trans.getY()) * scale) + (bbox.getY())
+							- (cellBounds.getY());
+
+					dx = Math.round((x - bbox.getX()) / scale);
+					dy = Math.round((y - bbox.getY()) / scale);
 				}
-
-				double x = ((dxg + trans.getX()) * scale) + (bbox.getX())
-						- (cellBounds.getX());
-				double y = ((dyg + trans.getY()) * scale) + (bbox.getY())
-						- (cellBounds.getY());
-
-				dx = Math.round((x - bbox.getX()) / scale);
-				dy = Math.round((y - bbox.getY()) / scale);
 			}
 
 			if (first == null
-					|| !graphComponent.isSignificant(e.getX() - first.x, e
-							.getY()
-							- first.y))
+					|| !graphComponent.isSignificant(e.getX() - first.x,
+							e.getY() - first.y))
 			{
 				// Delayed handling of selection
 				if (cell != null && !e.isPopupTrigger() && isSelectEnabled()
@@ -997,7 +1239,10 @@ public class mxGraphHandler extends mxMouseControl implements
 					{
 						if (tmp == null)
 						{
-							graph.clearSelection();
+							if (!graphComponent.isToggleEvent(e))
+							{
+								graph.clearSelection();
+							}
 						}
 						else if (graph.isSwimlane(tmp)
 								&& graphComponent.getCanvas()
@@ -1010,13 +1255,54 @@ public class mxGraphHandler extends mxMouseControl implements
 					}
 
 					if (graphComponent.isFoldingEnabled()
-							&& graphComponent.hitFoldingIcon(tmp, e.getX(), e
-									.getY()))
+							&& graphComponent.hitFoldingIcon(tmp, e.getX(),
+									e.getY()))
 					{
 						fold(tmp);
 						e.consume();
 					}
 				}
+			}
+			else if (movePreview.isActive())
+			{
+				if (graphComponent.isConstrainedEvent(e))
+				{
+					if (Math.abs(dx) > Math.abs(dy))
+					{
+						dy = 0;
+					}
+					else
+					{
+						dx = 0;
+					}
+				}
+
+				mxCellState markedState = marker.getMarkedState();
+				Object target = (markedState != null) ? markedState.getCell()
+						: null;
+
+				// FIXME: Cell is null if selection was carried out, need other variable
+				//trace("cell", cell);
+
+				if (target == null
+						&& isRemoveCellsFromParent()
+						&& shouldRemoveCellFromParent(graph.getModel()
+								.getParent(initialCell), cells, e))
+				{
+					target = graph.getDefaultParent();
+				}
+
+				boolean clone = isCloneEnabled()
+						&& graphComponent.isCloneEvent(e);
+				Object[] result = movePreview.stop(true, e, dx, dy, clone,
+						target);
+
+				if (cells != result)
+				{
+					graph.setSelectionCells(result);
+				}
+
+				e.consume();
 			}
 			else if (isVisible())
 			{
@@ -1068,6 +1354,11 @@ public class mxGraphHandler extends mxMouseControl implements
 	 */
 	public void reset()
 	{
+		if (movePreview.isActive())
+		{
+			movePreview.stop(false, null, 0, 0, false, null);
+		}
+
 		setVisible(false);
 		marker.reset();
 		initialCell = null;
@@ -1087,8 +1378,8 @@ public class mxGraphHandler extends mxMouseControl implements
 	{
 		if (graphComponent.getGraph().getModel().isVertex(parent))
 		{
-			mxCellState pState = graphComponent.getGraph().getView().getState(
-					parent);
+			mxCellState pState = graphComponent.getGraph().getView()
+					.getState(parent);
 
 			return pState != null && !pState.contains(e.getX(), e.getY());
 		}
@@ -1112,23 +1403,26 @@ public class mxGraphHandler extends mxMouseControl implements
 		{
 			cells = graph.getCloneableCells(cells);
 		}
-
-		// Removes cells from parent
-		if (target == null
-				&& isRemoveCellsFromParent()
-				&& shouldRemoveCellFromParent(graph.getModel().getParent(cell),
-						cells, e))
+		
+		if (cells.length > 0)
 		{
-			target = graph.getDefaultParent();
-		}
-
-		Object[] tmp = graph.moveCells(cells, dx, dy, clone, target, e
-				.getPoint());
-
-		if (isSelectEnabled() && clone && tmp != null
-				&& tmp.length == cells.length)
-		{
-			graph.setSelectionCells(tmp);
+			// Removes cells from parent
+			if (target == null
+					&& isRemoveCellsFromParent()
+					&& shouldRemoveCellFromParent(
+							graph.getModel().getParent(initialCell), cells, e))
+			{
+				target = graph.getDefaultParent();
+			}
+	
+			Object[] tmp = graph.moveCells(cells, dx, dy, clone, target,
+					e.getPoint());
+	
+			if (isSelectEnabled() && clone && tmp != null
+					&& tmp.length == cells.length)
+			{
+				graph.setSelectionCells(tmp);
+			}
 		}
 	}
 
@@ -1137,16 +1431,32 @@ public class mxGraphHandler extends mxMouseControl implements
 	 */
 	public void paint(Graphics g)
 	{
-		if (dragImage != null)
+		if (isVisible() && previewBounds != null)
 		{
-			// LATER: Clipping with mxUtils doesnt fix the problem
-			// of the drawImage being painted over the scrollbars
-			g.drawImage(dragImage.getImage(), 0, 0, dragImage.getIconWidth(),
-					dragImage.getIconHeight(), this);
-		}
-		else if (!imagePreview)
-		{
-			super.paint(g);
+			if (dragImage != null)
+			{
+				// LATER: Clipping with mxUtils doesnt fix the problem
+				// of the drawImage being painted over the scrollbars
+				Graphics2D tmp = (Graphics2D) g.create();
+
+				if (graphComponent.getPreviewAlpha() < 1)
+				{
+					tmp.setComposite(AlphaComposite.getInstance(
+							AlphaComposite.SRC_OVER,
+							graphComponent.getPreviewAlpha()));
+				}
+
+				tmp.drawImage(dragImage.getImage(), previewBounds.x,
+						previewBounds.y, dragImage.getIconWidth(),
+						dragImage.getIconHeight(), null);
+				tmp.dispose();
+			}
+			else if (!imagePreview)
+			{
+				mxSwingConstants.PREVIEW_BORDER.paintBorder(graphComponent, g,
+						previewBounds.x, previewBounds.y, previewBounds.width,
+						previewBounds.height);
+			}
 		}
 	}
 
@@ -1185,8 +1495,7 @@ public class mxGraphHandler extends mxMouseControl implements
 		int mod = (action == TransferHandler.COPY) ? InputEvent.CTRL_MASK : 0;
 
 		return new MouseEvent(component, 0, System.currentTimeMillis(), mod,
-				(int) location.getX(), (int) location.getY(), 1, false,
-				MouseEvent.BUTTON1);
+				location.x, location.y, 1, false, MouseEvent.BUTTON1);
 	}
 
 	/**

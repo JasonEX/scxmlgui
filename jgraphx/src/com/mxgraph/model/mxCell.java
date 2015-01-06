@@ -1,5 +1,4 @@
 /**
- * $Id: mxCell.java,v 1.29 2010/02/03 16:55:39 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.model;
@@ -344,15 +343,6 @@ public class mxCell implements mxICell, Cloneable, Serializable
 		return (children != null) ? children.size() : 0;
 	}
 
-	public boolean hasAVertexAsChild() {
-		int l=getChildCount();
-		for (int i=0;i<l;i++) {
-			mxCell c = (mxCell)getChildAt(i);
-			if (c.isVertex()) return true;
-		}
-		return false;
-	}
-	
 	/* (non-Javadoc)
 	 * @see com.mxgraph.model.mxICell#getIndex(com.mxgraph.model.mxICell)
 	 */
@@ -374,7 +364,14 @@ public class mxCell implements mxICell, Cloneable, Serializable
 	 */
 	public mxICell insert(mxICell child)
 	{
-		return insert(child, getChildCount());
+		int index = getChildCount();
+		
+		if (child.getParent() == this)
+		{
+			index--;
+		}
+		
+		return insert(child, index);
 	}
 
 	/* (non-Javadoc)
@@ -624,11 +621,4 @@ public class mxCell implements mxICell, Cloneable, Serializable
 		return value;
 	}
 
-	@Override
-	public String toString() {
-		if (getValue()!=null)
-			return "{"+getValue().toString()+"}";
-		else
-			return "{"+super.toString()+"}";
-	}
 }

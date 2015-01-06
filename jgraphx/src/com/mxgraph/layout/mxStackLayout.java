@@ -76,7 +76,7 @@ public class mxStackLayout extends mxGraphLayout
 	 */
 	public mxStackLayout(mxGraph graph, boolean horizontal, int spacing)
 	{
-		this(graph, horizontal, 0, 0, 0, 0);
+		this(graph, horizontal, spacing, 0, 0, 0);
 	}
 
 	/**

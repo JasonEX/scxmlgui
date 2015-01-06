@@ -1,5 +1,4 @@
 /**
- * $Id: mxCellCodec.java,v 1.12 2009/12/07 15:15:55 gaudenz Exp $
  * Copyright (c) 2006, Gaudenz Alder
  */
 package com.mxgraph.io;
@@ -102,13 +101,25 @@ public class mxCellCodec extends mxObjectCodec
 		if (obj instanceof mxCell)
 		{
 			mxCell cell = (mxCell) obj;
-			String className = mxCodecRegistry.getName(template);
+			String classname = getName();
+			String nodeName = node.getNodeName();
+			
+			// Handles aliased names
+			if (!nodeName.equals(classname))
+			{
+				String tmp = mxCodecRegistry.aliases.get(nodeName);
+				
+				if (tmp != null)
+				{
+					nodeName = tmp;
+				}
+			}
 
-			if (!node.getNodeName().equals(className))
+			if (!nodeName.equals(classname))
 			{
 				// Passes the inner graphical annotation node to the
 				// object codec for further processing of the cell.
-				Node tmp = inner.getElementsByTagName(className).item(0);
+				Node tmp = inner.getElementsByTagName(classname).item(0);
 
 				if (tmp != null && tmp.getParentNode() == node)
 				{

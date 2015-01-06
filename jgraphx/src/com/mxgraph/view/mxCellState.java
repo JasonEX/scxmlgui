@@ -1,11 +1,8 @@
 /**
- * $Id: mxCellState.java,v 1.31 2010/01/13 10:43:46 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.view;
 
-import java.awt.Point;
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +29,12 @@ public class mxCellState extends mxRectangle
 	 * Reference to the cell that is represented by this state.
 	 */
 	protected Object cell;
+
+	/**
+	 * Holds the current label value, including newlines which result from
+	 * word wrapping.
+	 */
+	protected String label;
 
 	/**
 	 * Contains an array of key, value pairs that represent the style of the
@@ -81,6 +84,11 @@ public class mxCellState extends mxRectangle
 	 * Specifies if the state is invalid. Default is true.
 	 */
 	protected boolean invalid = true;
+
+	/**
+	 * Caches the visible source and target terminal states.
+	 */
+	protected mxCellState visibleSourceState, visibleTargetState;
 
 	/**
 	 * Constructs an empty cell state.
@@ -139,6 +147,22 @@ public class mxCellState extends mxRectangle
 	public void setView(mxGraphView view)
 	{
 		this.view = view;
+	}
+
+	/**
+	 * Returns the current label.
+	 */
+	public String getLabel()
+	{
+		return label;
+	}
+
+	/**
+	 * Returns the current label.
+	 */
+	public void setLabel(String value)
+	{
+		label = value;
 	}
 
 	/**
@@ -445,6 +469,49 @@ public class mxCellState extends mxRectangle
 	}
 
 	/**
+	 * Returns the visible source or target terminal cell.
+	 * 
+	 * @param source Boolean that specifies if the source or target cell should be
+	 * returned.
+	 */
+	public Object getVisibleTerminal(boolean source)
+	{
+		mxCellState tmp = getVisibleTerminalState(source);
+
+		return (tmp != null) ? tmp.getCell() : null;
+	}
+
+	/**
+	 * Returns the visible source or target terminal state.
+	 * 
+	 * @param Boolean that specifies if the source or target state should be
+	 * returned.
+	 */
+	public mxCellState getVisibleTerminalState(boolean source)
+	{
+		return (source) ? visibleSourceState : visibleTargetState;
+	}
+
+	/**
+	 * Sets the visible source or target terminal state.
+	 * 
+	 * @param terminalState Cell state that represents the terminal.
+	 * @param source Boolean that specifies if the source or target state should be set.
+	 */
+	public void setVisibleTerminalState(mxCellState terminalState,
+			boolean source)
+	{
+		if (source)
+		{
+			visibleSourceState = terminalState;
+		}
+		else
+		{
+			visibleTargetState = terminalState;
+		}
+	}
+
+	/**
 	 * Returns a clone of this state where all members are deeply cloned
 	 * except the view and cell references, which are copied with no
 	 * cloning to the new instance.
@@ -452,6 +519,11 @@ public class mxCellState extends mxRectangle
 	public Object clone()
 	{
 		mxCellState clone = new mxCellState(view, cell, style);
+		
+		if (label != null)
+		{
+			clone.label = label;
+		}
 
 		if (absolutePoints != null)
 		{
@@ -474,6 +546,11 @@ public class mxCellState extends mxRectangle
 			clone.absoluteOffset = (mxPoint) absoluteOffset.clone();
 		}
 
+		if (labelBounds != null)
+		{
+			clone.labelBounds = (mxRectangle) labelBounds.clone();
+		}
+
 		if (boundingBox != null)
 		{
 			clone.boundingBox = (mxRectangle) boundingBox.clone();
@@ -489,42 +566,5 @@ public class mxCellState extends mxRectangle
 
 		return clone;
 	}
-
-	public Point relativizePointToThisState(Point p, double s, mxPoint tr) {
-		//p is already normalized to the scale
-		return new Point((int) Math.round((p.x-getX())/s),(int)Math.round((p.y-getY())/s));
-	}
-	public mxRectangle relativizeRectangleToThisState(mxRectangle r, double s, mxPoint tr) {
-		// r is not normalized to the scale
-		return new mxRectangle((r.getX()-getX())/s, (r.getY()-getY())/s, r.getWidth()/s, r.getHeight()/s);
-	}
-	
-	public int getIndexOfEdgePointAt(int x, int y,int tol) {
-		Rectangle rect = new Rectangle(x - tol / 2, y - tol / 2, tol, tol);
-		List<mxPoint> pts = getAbsolutePoints();
-
-		int i=0;
-		for (mxPoint p:pts) {
-			//System.out.println("point="+p.getX()+" "+p.getY());
-			if (rect.contains(p.getPoint())) return i;
-			i++;
-		}
-		return -1;
-	}
-	public int getIndexOfNewPoint(int x, int y,int tol) {
-		Rectangle rect = new Rectangle(x - tol / 2, y - tol / 2, tol, tol);
-		List<mxPoint> pts = getAbsolutePoints();
-
-		int length=pts.size();
-		mxPoint start,end;
-		start=pts.get(0);
-		for(int i=1;i<length;i++) {
-			end=pts.get(i);
-			if (rect.intersectsLine(start.getX(),start.getY(),end.getX(),end.getY())) return i;
-			start=end;
-		}
-		return -1;
-	}
-
 
 }

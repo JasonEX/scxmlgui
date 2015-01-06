@@ -1,9 +1,11 @@
 /**
- * $Id: mxGraphModel.java,v 1.78 2010/01/13 10:43:46 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.model;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -19,7 +21,6 @@ import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxEventSource;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxUndoableEdit;
-import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 
 /**
  * Extends mxEventSource to implement a graph model. The graph model acts as
@@ -43,9 +44,10 @@ import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
  * 
  * This class fires the following events:
  * 
- * mxEvent.CHANGE fires when an undoable edit is dispatched. The
- * <code>changes</code> argument contains the list of undoable changes which is
- * stored in mxUndoableEdit.changes, the type is List&lt;mxUndoableChange&gt;.
+ * mxEvent.CHANGE fires when an undoable edit is dispatched. The <code>edit</code>
+ * property contains the mxUndoableEdit. The <code>changes</code> property
+ * contains the list of undoable changes inside the undoable edit. The changes
+ * property is deprecated, please use edit.getChanges() instead.
  * 
  * mxEvent.EXECUTE fires between begin- and endUpdate and after an atomic
  * change was executed in the model. The <code>change</code> property contains
@@ -65,7 +67,8 @@ import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
  * mxEvent.UNDO fires after the change was dispatched in endUpdate. The
  * <code>edit</code> property contains the current mxUndoableEdit.
  */
-public class mxGraphModel extends mxEventSource implements mxIGraphModel
+public class mxGraphModel extends mxEventSource implements mxIGraphModel,
+		Serializable
 {
 
 	/**
@@ -151,10 +154,6 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 	public void clear()
 	{
 		setRoot(createRoot());
-	}
-	
-	public void clearCells(){
-		cells.clear();
 	}
 
 	/**
@@ -289,10 +288,11 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 	{
 		return new mxUndoableEdit(this)
 		{
-			public void dispatch(boolean validate)
+			public void dispatch()
 			{
+				// LATER: Remove changes property (deprecated)
 				((mxGraphModel) source).fireEvent(new mxEventObject(
-						mxEvent.CHANGE, "changes", changes,"revalidate",validate));
+						mxEvent.CHANGE, "edit", this, "changes", changes));
 			}
 		};
 	}
@@ -300,9 +300,9 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 	/* (non-Javadoc)
 	 * @see com.mxgraph.model.mxIGraphModel#cloneCells(Object[], boolean)
 	 */
-	public Object[] cloneCells(Object[] cells, boolean includeChildren,Map<Object, Object> mapping)
+	public Object[] cloneCells(Object[] cells, boolean includeChildren)
 	{
-		if (mapping==null) mapping = new Hashtable<Object, Object>();
+		Map<Object, Object> mapping = new Hashtable<Object, Object>();
 		Object[] clones = new Object[cells.length];
 
 		for (int i = 0; i < cells.length; i++)
@@ -426,19 +426,15 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 				: null;
 	}
 
-	public Object add(Object parent, Object child, int index) {
-		return add(parent, child, index, false);
-	}
 	/* (non-Javadoc)
 	 * @see com.mxgraph.model.mxIGraphModel#add(Object, Object, int)
 	 */
-	public Object add(Object parent, Object child, int index,boolean covert)
+	public Object add(Object parent, Object child, int index)
 	{
 		if (child != parent && parent != null && child != null)
 		{
 			boolean parentChanged = parent != getParent(child);
-			if (covert) executeCovert(new mxChildChange(this, parent, child, index));
-			else execute(new mxChildChange(this, parent, child, index));
+			execute(new mxChildChange(this, parent, child, index));
 
 			// Maintains the edges parents by moving the edges
 			// into the nearest common ancestor of its
@@ -734,12 +730,26 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		Object source = getTerminal(edge, true);
 		Object target = getTerminal(edge, false);
 		Object cell = null;
-
+		
+		// Uses the first non-relative descendants of the source terminal
+		while (source != null && !isEdge(source) &&
+			getGeometry(source) != null && getGeometry(source).isRelative())
+		{
+			source = getParent(source);
+		}
+		
+		// Uses the first non-relative descendants of the target terminal
+		while (target != null && !isEdge(target) &&
+			getGeometry(target) != null && getGeometry(target).isRelative())
+		{
+			target = getParent(target);
+		}
+		
 		if (isAncestor(root, source) && isAncestor(root, target))
 		{
 			if (source == target)
 			{
-				cell=source;//cell = getParent(source);
+				cell = getParent(source);
 			}
 			else
 			{
@@ -766,8 +776,6 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 					setGeometry(edge, geo);
 				}
 
-				System.out.println("Moving edge " + ((mxICell) edge).getValue()
-						+ " to parent " + mxCellPath.create((mxICell) cell));
 				add(cell, edge, getChildCount(cell));
 			}
 		}
@@ -813,8 +821,6 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 	 */
 	public Object getNearestCommonAncestor(Object cell1, Object cell2)
 	{
-		Object result = null;
-
 		if (cell1 != null && cell2 != null)
 		{
 			// Creates the cell path for the second cell
@@ -827,7 +833,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 				Object cell = cell1;
 				String current = mxCellPath.create((mxICell) cell);
 
-				while (cell != null && result == null)
+				while (cell != null)
 				{
 					Object parent = getParent(cell);
 
@@ -836,7 +842,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 					if (path.indexOf(current + mxCellPath.PATH_SEPARATOR) == 0
 							&& parent != null)
 					{
-						result = cell;
+						return cell;
 					}
 
 					current = mxCellPath.getParentPath(current);
@@ -845,7 +851,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			}
 		}
 
-		return result;
+		return null;
 	}
 
 	/* (non-Javadoc)
@@ -968,22 +974,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 	 */
 	public String setStyle(Object cell, String style)
 	{
-		if (style != getStyle(cell))
+		if (style == null || !style.equals(getStyle(cell)))
 		{
 			execute(new mxStyleChange(this, cell, style));
 		}
 
 		return style;
 	}
-	public String setStyleCovert(Object cell, String style)
-	{
-		if (style != getStyle(cell))
-		{
-			executeCovert(new mxStyleChange(this, cell, style));
-		}
 
-		return style;
-	}
 	/**
 	 * Inner callback to update the style of the given mxCell
 	 * using mxCell.setStyle and return the previous style.
@@ -1078,23 +1076,6 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		fireEvent(new mxEventObject(mxEvent.EXECUTE, "change", change));
 		endUpdate();
 	}
-	public void executeCovert(mxAtomicGraphModelChange change)
-	{
-		assert(currentEdit.isEmpty());
-		currentEdit.setTransparent(true);
-		change.execute();
-		beginUpdate();
-		currentEdit.add(change);
-		fireEvent(new mxEventObject(mxEvent.EXECUTE, "change", change));
-		endUpdate(false);
-	}
-	public void addChangeToCurrentEdit(mxUndoableChange change) throws Exception {
-		if (getUpdateLevel()>0) {
-			currentEdit.add(change);
-		} else {
-			throw new Exception("Error: attempting to add a change outside a model update session.");
-		}
-	}
 
 	/* (non-Javadoc)
 	 * @see com.mxgraph.model.mxIGraphModel#beginUpdate()
@@ -1108,13 +1089,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 	/* (non-Javadoc)
 	 * @see com.mxgraph.model.mxIGraphModel#endUpdate()
 	 */
-	public void endUpdate() {
-		endUpdate(true);
-	}
-	/* (non-Javadoc)
-	 * @see com.mxgraph.model.mxIGraphModel#endUpdate()
-	 */
-	public void endUpdate(boolean validate)
+	public void endUpdate()
 	{
 		updateLevel--;
 
@@ -1127,10 +1102,11 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			{
 				if (endingUpdate && !currentEdit.isEmpty())
 				{
-					fireEvent(new mxEventObject(mxEvent.BEFORE_UNDO, "edit",currentEdit));
+					fireEvent(new mxEventObject(mxEvent.BEFORE_UNDO, "edit",
+							currentEdit));
 					mxUndoableEdit tmp = currentEdit;
 					currentEdit = createUndoableEdit();
-					tmp.dispatch(validate);
+					tmp.dispatch();
 					fireEvent(new mxEventObject(mxEvent.UNDO, "edit", tmp));
 				}
 			}
@@ -1213,40 +1189,45 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 
 			for (int i = 0; i < childCount; i++)
 			{
-				Object child = from.getChildAt(i);
+				mxICell cell = from.getChildAt(i);
+				String id = cell.getId();
+				mxICell target = (mxICell) ((id != null && (!isEdge(cell) || !cloneAllEdges)) ? getCell(id)
+						: null);
 
-				if (child instanceof mxICell)
+				// Clones and adds the child if no cell exists for the id
+				if (target == null)
 				{
-					mxICell cell = (mxICell) child;
-					String id = cell.getId();
-					mxICell target = (mxICell) ((id != null && (!isEdge(cell) || !cloneAllEdges)) ? getCell(id)
-							: null);
+					mxCell clone = (mxCell) cell.clone();
+					clone.setId(id);
 
-					// Clones and adds the child if no cell exists for the id
-					if (target == null)
-					{
-						mxCell clone = (mxCell) cell.clone();
-						clone.setId(id);
-
-						// Do *NOT* use model.add as this will move the edge away
-						// from the parent in updateEdgeParent if maintainEdgeParent
-						// is enabled in the target model
-						target = (mxICell) to.insert(clone);
-						cellAdded(target);
-					}
-
-					// Stores the mapping for later reconnecting edges
-					mapping.put(cell, target);
-
-					// Recurses
-					mergeChildrenImpl(cell, target, cloneAllEdges, mapping);
+					// Do *NOT* use model.add as this will move the edge away
+					// from the parent in updateEdgeParent if maintainEdgeParent
+					// is enabled in the target model
+					target = to.insert(clone);
+					cellAdded(target);
 				}
+
+				// Stores the mapping for later reconnecting edges
+				mapping.put(cell, target);
+
+				// Recurses
+				mergeChildrenImpl(cell, target, cloneAllEdges, mapping);
 			}
 		}
 		finally
 		{
 			endUpdate();
 		}
+	}
+
+	/**
+	 * Initializes the currentEdit field if the model is deserialized.
+	 */
+	private void readObject(ObjectInputStream ois) throws IOException,
+			ClassNotFoundException
+	{
+		ois.defaultReadObject();
+		currentEdit = createUndoableEdit();
 	}
 
 	/**
@@ -1365,7 +1346,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			Object source = model.getTerminal(edge, true);
 			Object target = model.getTerminal(edge, false);
 
-			if (includeLoops
+			if ((includeLoops && source == target)
 					|| ((source != target) && ((incoming && target == cell) || (outgoing && source == cell))))
 			{
 				result.add(edge);
@@ -1373,14 +1354,6 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		return result.toArray();
-	}
-	
-	public boolean isLoop(mxIGraphModel model, Object edge) {
-		if (model.isEdge(edge)) {
-			Object source = model.getTerminal(edge, true);
-			Object target = model.getTerminal(edge, false);
-			return source==target;
-		} else return false;
 	}
 
 	/**
@@ -1436,11 +1409,10 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			Object edge = model.getEdgeAt(terminal, i);
 			Object src = model.getTerminal(edge, true);
 			Object trg = model.getTerminal(edge, false);
-			boolean isSource = src == source;
+			boolean directedMatch = (src == source) && (trg == target);
+			boolean oppositeMatch = (trg == source) && (src == target);
 
-			if (isSource
-					&& trg == target
-					|| (!directed && model.getTerminal(edge, !isSource) == target))
+			if (directedMatch || (!directed && oppositeMatch))
 			{
 				result.add(edge);
 			}
@@ -1764,6 +1736,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
+		public mxRootChange()
+		{
+			this(null, null);
+		}
+
+		/**
+		 * 
+		 */
 		public mxRootChange(mxGraphModel model, Object root)
 		{
 			super(model);
@@ -1772,11 +1752,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setRoot(Object value)
+		{
+			root = value;
+		}
+
+		/**
 		 * @return the root
 		 */
 		public Object getRoot()
 		{
 			return root;
+		}
+
+		/**
+		 * 
+		 */
+		public void setPrevious(Object value)
+		{
+			previous = value;
 		}
 
 		/**
@@ -1814,7 +1810,10 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
-		protected boolean added;
+		public mxChildChange()
+		{
+			this(null, null, null, 0);
+		}
 
 		/**
 		 * 
@@ -1836,7 +1835,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			this.child = child;
 			this.index = index;
 			previousIndex = index;
-			added = (parent == null);
+		}
+
+		/**
+		 *
+		 */
+		public void setParent(Object value)
+		{
+			parent = value;
 		}
 
 		/**
@@ -1848,11 +1854,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 *
+		 */
+		public void setPrevious(Object value)
+		{
+			previous = value;
+		}
+
+		/**
 		 * @return the previous
 		 */
 		public Object getPrevious()
 		{
 			return previous;
+		}
+
+		/**
+		 *
+		 */
+		public void setChild(Object value)
+		{
+			child = value;
 		}
 
 		/**
@@ -1864,6 +1886,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 *
+		 */
+		public void setIndex(int value)
+		{
+			index = value;
+		}
+
+		/**
 		 * @return the index
 		 */
 		public int getIndex()
@@ -1872,19 +1902,19 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 *
+		 */
+		public void setPreviousIndex(int value)
+		{
+			previousIndex = value;
+		}
+
+		/**
 		 * @return the previousIndex
 		 */
 		public int getPreviousIndex()
 		{
 			return previousIndex;
-		}
-
-		/**
-		 * @return the isAdded
-		 */
-		public boolean isAdded()
-		{
-			return added;
 		}
 
 		/**
@@ -1951,7 +1981,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 
 			for (int i = 0; i < childCount; i++)
 			{
-				connect((mxICell) model.getChildAt(cell, i), isConnect);
+				connect(model.getChildAt(cell, i), isConnect);
 			}
 		}
 
@@ -1961,8 +1991,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		protected int getChildIndex(Object parent, Object child)
 		{
 			return (parent instanceof mxICell && child instanceof mxICell) ? ((mxICell) parent)
-					.getIndex((mxICell) child)
-					: 0;
+					.getIndex((mxICell) child) : 0;
 		}
 
 		/**
@@ -1990,7 +2019,6 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			previous = tmp;
 			index = previousIndex;
 			previousIndex = tmp2;
-			added = !added;
 		}
 
 	}
@@ -2006,19 +2034,35 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
-		protected boolean isSource;
+		protected boolean source;
+
+		/**
+		 * 
+		 */
+		public mxTerminalChange()
+		{
+			this(null, null, null, false);
+		}
 
 		/**
 		 * 
 		 */
 		public mxTerminalChange(mxGraphModel model, Object cell,
-				Object terminal, boolean isSource)
+				Object terminal, boolean source)
 		{
 			super(model);
 			this.cell = cell;
 			this.terminal = terminal;
 			this.previous = this.terminal;
-			this.isSource = isSource;
+			this.source = source;
+		}
+
+		/**
+		 * 
+		 */
+		public void setCell(Object value)
+		{
+			cell = value;
 		}
 
 		/**
@@ -2030,11 +2074,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setTerminal(Object value)
+		{
+			terminal = value;
+		}
+
+		/**
 		 * @return the terminal
 		 */
 		public Object getTerminal()
 		{
 			return terminal;
+		}
+
+		/**
+		 * 
+		 */
+		public void setPrevious(Object value)
+		{
+			previous = value;
 		}
 
 		/**
@@ -2046,11 +2106,19 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setSource(boolean value)
+		{
+			source = value;
+		}
+
+		/**
 		 * @return the isSource
 		 */
 		public boolean isSource()
 		{
-			return isSource;
+			return source;
 		}
 
 		/**
@@ -2060,7 +2128,7 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		{
 			terminal = previous;
 			previous = ((mxGraphModel) model).terminalForCellChanged(cell,
-					previous, isSource);
+					previous, source);
 		}
 
 	}
@@ -2076,12 +2144,28 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
+		public mxValueChange()
+		{
+			this(null, null, null);
+		}
+
+		/**
+		 * 
+		 */
 		public mxValueChange(mxGraphModel model, Object cell, Object value)
 		{
 			super(model);
 			this.cell = cell;
 			this.value = value;
 			this.previous = this.value;
+		}
+
+		/**
+		 * 
+		 */
+		public void setCell(Object value)
+		{
+			cell = value;
 		}
 
 		/**
@@ -2093,11 +2177,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setValue(Object value)
+		{
+			this.value = value;
+		}
+
+		/**
 		 * @return the value
 		 */
 		public Object getValue()
 		{
 			return value;
+		}
+
+		/**
+		 * 
+		 */
+		public void setPrevious(Object value)
+		{
+			previous = value;
 		}
 
 		/**
@@ -2136,12 +2236,28 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
+		public mxStyleChange()
+		{
+			this(null, null, null);
+		}
+
+		/**
+		 * 
+		 */
 		public mxStyleChange(mxGraphModel model, Object cell, String style)
 		{
 			super(model);
 			this.cell = cell;
 			this.style = style;
 			this.previous = this.style;
+		}
+
+		/**
+		 * 
+		 */
+		public void setCell(Object value)
+		{
+			cell = value;
 		}
 
 		/**
@@ -2153,11 +2269,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setStyle(String value)
+		{
+			style = value;
+		}
+
+		/**
 		 * @return the style
 		 */
 		public String getStyle()
 		{
 			return style;
+		}
+
+		/**
+		 * 
+		 */
+		public void setPrevious(String value)
+		{
+			previous = value;
 		}
 
 		/**
@@ -2196,6 +2328,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
+		public mxGeometryChange()
+		{
+			this(null, null, null);
+		}
+
+		/**
+		 * 
+		 */
 		public mxGeometryChange(mxGraphModel model, Object cell,
 				mxGeometry geometry)
 		{
@@ -2203,6 +2343,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			this.cell = cell;
 			this.geometry = geometry;
 			this.previous = this.geometry;
+		}
+
+		/**
+		 * 
+		 */
+		public void setCell(Object value)
+		{
+			cell = value;
 		}
 
 		/**
@@ -2214,11 +2362,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 *
+		 */
+		public void setGeometry(mxGeometry value)
+		{
+			geometry = value;
+		}
+
+		/**
 		 * @return the geometry
 		 */
 		public mxGeometry getGeometry()
 		{
 			return geometry;
+		}
+
+		/**
+		 *
+		 */
+		public void setPrevious(mxGeometry value)
+		{
+			previous = value;
 		}
 
 		/**
@@ -2257,6 +2421,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
+		public mxCollapseChange()
+		{
+			this(null, null, false);
+		}
+
+		/**
+		 * 
+		 */
 		public mxCollapseChange(mxGraphModel model, Object cell,
 				boolean collapsed)
 		{
@@ -2264,6 +2436,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 			this.cell = cell;
 			this.collapsed = collapsed;
 			this.previous = this.collapsed;
+		}
+
+		/**
+		 * 
+		 */
+		public void setCell(Object value)
+		{
+			cell = value;
 		}
 
 		/**
@@ -2275,11 +2455,27 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setCollapsed(boolean value)
+		{
+			collapsed = value;
+		}
+
+		/**
 		 * @return the collapsed
 		 */
 		public boolean isCollapsed()
 		{
 			return collapsed;
+		}
+
+		/**
+		 * 
+		 */
+		public void setPrevious(boolean value)
+		{
+			previous = value;
 		}
 
 		/**
@@ -2318,12 +2514,28 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		/**
 		 * 
 		 */
+		public mxVisibleChange()
+		{
+			this(null, null, false);
+		}
+
+		/**
+		 * 
+		 */
 		public mxVisibleChange(mxGraphModel model, Object cell, boolean visible)
 		{
 			super(model);
 			this.cell = cell;
 			this.visible = visible;
 			this.previous = this.visible;
+		}
+
+		/**
+		 * 
+		 */
+		public void setCell(Object value)
+		{
+			cell = value;
 		}
 
 		/**
@@ -2335,6 +2547,14 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setVisible(boolean value)
+		{
+			visible = value;
+		}
+
+		/**
 		 * @return the visible
 		 */
 		public boolean isVisible()
@@ -2343,11 +2563,19 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 		/**
+		 * 
+		 */
+		public void setPrevious(boolean value)
+		{
+			previous = value;
+		}
+
+		/**
 		 * @return the previous
 		 */
 		public boolean getPrevious()
 		{
-			return visible;
+			return previous;
 		}
 
 		/**
@@ -2361,68 +2589,5 @@ public class mxGraphModel extends mxEventSource implements mxIGraphModel
 		}
 
 	}
-/*
-	@Override
-	public void highlightCell(mxCell node, String color) {
-		if (node!=null) {
-			String style=getStyle(node);
-			if (node.isVertex()) {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFILLCOLOR, color);
-			} else {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKECOLOR, color);
-			}
-			setStyleCovert(node, style);
-		}
-	}
 
-	@Override
-	public void highlightCell(mxCell node, String strokeColor, String width) {
-		if (node!=null) {
-			String style=getStyle(node);
-			if (node.isVertex()) {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFILLCOLOR, strokeColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKEWIDTH, width);
-			} else {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKECOLOR, strokeColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKEWIDTH, width);
-			}
-			setStyleCovert(node, style);
-		}
-	}
-
-	@Override
-	public void highlightCell(mxCell node, String strokeColor, String width,String fontColor) {
-		if (node!=null) {
-			String style=getStyle(node);
-			if (node.isVertex()) {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFILLCOLOR, strokeColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKEWIDTH, width);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFONTCOLOR, fontColor);
-			} else {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKECOLOR, strokeColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKEWIDTH, width);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFONTCOLOR, fontColor);
-			}
-			setStyleCovert(node, style);
-		}
-	}
-
-	@Override
-	public void highlightCell(mxCell node, String strokeColor, String width,String fontColor, String labelBackground) {
-		if (node!=null) {
-			String style=getStyle(node);
-			if (node.isVertex()) {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFILLCOLOR, strokeColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKEWIDTH, width);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFONTCOLOR, fontColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHT_LABEL_BACKGROUNDCOLOR, labelBackground);
-			} else {
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKECOLOR, strokeColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTSTROKEWIDTH, width);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHTFONTCOLOR, fontColor);
-				style=mxUtils.setStyle(style, mxConstants.STYLE_HIGHLIGHT_LABEL_BACKGROUNDCOLOR, labelBackground);
-			}
-			setStyleCovert(node, style);
-		}
-	}*/
 }

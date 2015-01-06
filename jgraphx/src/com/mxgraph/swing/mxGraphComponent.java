@@ -1,6 +1,5 @@
 /**
- * $Id: mxGraphComponent.java,v 1.87 2010/02/09 14:46:27 gaudenz Exp $
- * Copyright (c) 2009, Gaudenz Alder
+ * Copyright (c) 2009-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.swing;
 
@@ -36,8 +35,6 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
@@ -63,13 +60,14 @@ import com.mxgraph.swing.handler.mxElbowEdgeHandler;
 import com.mxgraph.swing.handler.mxGraphHandler;
 import com.mxgraph.swing.handler.mxGraphTransferHandler;
 import com.mxgraph.swing.handler.mxPanningHandler;
-import com.mxgraph.swing.handler.mxSubHandler;
+import com.mxgraph.swing.handler.mxSelectionCellsHandler;
 import com.mxgraph.swing.handler.mxVertexHandler;
 import com.mxgraph.swing.util.mxCellOverlay;
 import com.mxgraph.swing.util.mxICellOverlay;
 import com.mxgraph.swing.view.mxCellEditor;
 import com.mxgraph.swing.view.mxICellEditor;
 import com.mxgraph.swing.view.mxInteractiveCanvas;
+import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxEventSource;
@@ -78,7 +76,6 @@ import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
-import com.mxgraph.validation.Validator;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxEdgeStyle;
 import com.mxgraph.view.mxEdgeStyle.mxEdgeStyleFunction;
@@ -88,14 +85,14 @@ import com.mxgraph.view.mxTemporaryCellStates;
 
 /**
  * For setting the preferred size of the viewport for scrolling, use
- * mxGraph.setMinimumGraphSize. This component is a combined scrollpane
- * with an inner mxGraphControl. The control contains the actual graph
- * display.
+ * mxGraph.setMinimumGraphSize. This component is a combined scrollpane with an
+ * inner mxGraphControl. The control contains the actual graph display.
  * 
  * To set the background color of the graph, use the following code:
+ * 
  * <pre>
- * graphComponent.getViewport().setOpaque(false);
- * graphComponent.setBackground(newColor);
+ * graphComponent.getViewport().setOpaque(true);
+ * graphComponent.getViewport().setBackground(newColor);
  * </pre>
  * 
  * This class fires the following events:
@@ -107,13 +104,13 @@ import com.mxgraph.view.mxTemporaryCellStates;
  * 
  * mxEvent.LABEL_CHANGED fires between begin- and endUpdate after the call to
  * mxGraph.cellLabelChanged in labelChanged. The <code>cell</code> property
- * contains the cell, the <code>value</code> property contains the new value
- * for the cell and the optional <code>event</code> property contains the
+ * contains the cell, the <code>value</code> property contains the new value for
+ * the cell and the optional <code>event</code> property contains the
  * EventObject that started the edit.
  * 
- * mxEvent.ADD_OVERLAY and mxEvent.REMOVE_OVERLAY fire afer an overlay was
- * added or removed using add-/removeOverlay. The <code>cell</code> property
- * contains the cell for which the overlay was added or removed and the
+ * mxEvent.ADD_OVERLAY and mxEvent.REMOVE_OVERLAY fire afer an overlay was added
+ * or removed using add-/removeOverlay. The <code>cell</code> property contains
+ * the cell for which the overlay was added or removed and the
  * <code>overlay</code> property contain the mxOverlay.
  * 
  * mxEvent.BEFORE_PAINT and mxEvent.AFTER_PAINT fire before and after the paint
@@ -188,12 +185,15 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	static
 	{
-		DEFAULT_EXPANDED_ICON = new ImageIcon(mxGraphComponent.class
-				.getResource("/com/mxgraph/swing/images/expanded.gif"));
-		DEFAULT_COLLAPSED_ICON = new ImageIcon(mxGraphComponent.class
-				.getResource("/com/mxgraph/swing/images/collapsed.gif"));
-		DEFAULT_WARNING_ICON = new ImageIcon(mxGraphComponent.class
-				.getResource("/com/mxgraph/swing/images/warning.gif"));
+		DEFAULT_EXPANDED_ICON = new ImageIcon(
+				mxGraphComponent.class
+						.getResource("/com/mxgraph/swing/images/expanded.gif"));
+		DEFAULT_COLLAPSED_ICON = new ImageIcon(
+				mxGraphComponent.class
+						.getResource("/com/mxgraph/swing/images/collapsed.gif"));
+		DEFAULT_WARNING_ICON = new ImageIcon(
+				mxGraphComponent.class
+						.getResource("/com/mxgraph/swing/images/warning.gif"));
 	}
 
 	/**
@@ -229,12 +229,18 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	protected mxSubHandler subHandler;
+	protected mxSelectionCellsHandler selectionCellsHandler;
 
 	/**
 	 * 
 	 */
 	protected mxGraphHandler graphHandler;
+
+	/**
+	 * The transparency of previewed cells from 0.0. to 0.1. 0.0 indicates
+	 * transparent, 1.0 indicates opaque. Default is 1.
+	 */
+	protected float previewAlpha = 0.5f;
 
 	/**
 	 * Specifies the <mxImage> to be returned by <getBackgroundImage>. Default
@@ -274,16 +280,20 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	protected boolean pageVisible = false;
 
 	/**
-	 * If the pageFormat should be used to determine the minimal graph
-	 * bounds even if the page is not visible (see pageVisible). Default
-	 * is false.
+	 * If the pageFormat should be used to determine the minimal graph bounds
+	 * even if the page is not visible (see pageVisible). Default is false.
 	 */
 	protected boolean preferPageSize = false;
 
 	/**
 	 * Specifies if a dashed line should be drawn between multiple pages.
 	 */
-	protected boolean pageBreakVisible = true;
+	protected boolean pageBreaksVisible = true;
+
+	/**
+	 * Specifies the color of page breaks
+	 */
+	protected Color pageBreakColor = Color.darkGray;
 
 	/**
 	 * Specifies the number of pages in the horizontal direction.
@@ -297,8 +307,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 	/**
 	 * Specifies if the background page should be centered by automatically
-	 * setting the translate in the view. Default is true. This does only
-	 * apply if pageVisible is true.
+	 * setting the translate in the view. Default is true. This does only apply
+	 * if pageVisible is true.
 	 */
 	protected boolean centerPage = true;
 
@@ -328,6 +338,20 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	protected Color gridColor = new Color(192, 192, 192);
 
 	/**
+	 * Whether or not to scroll the scrollable container the graph exists in if
+	 * a suitable handler is active and the graph bounds already exist extended
+	 * in the direction of mouse travel.
+	 */
+	protected boolean autoScroll = true;
+
+	/**
+	 * Whether to extend the graph bounds and scroll towards the limit of those
+	 * new bounds in the direction of mouse travel if a handler is active while
+	 * the mouse leaves the container that the graph exists in.
+	 */
+	protected boolean autoExtend = true;
+
+	/**
 	 * 
 	 */
 	protected boolean dragEnabled = true;
@@ -351,7 +375,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Specifies the tolerance for mouse clicks. Default is 4.
 	 */
-	protected int tolerance = 12;
+	protected int tolerance = 4;
 
 	/**
 	 * Specifies if swimlanes are selected when the mouse is released over the
@@ -360,7 +384,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	protected boolean swimlaneSelectionEnabled = true;
 
 	/**
-	 * Specifies if the content area should be transparent to events. Default is true.
+	 * Specifies if the content area should be transparent to events. Default is
+	 * true.
 	 */
 	protected boolean transparentSwimlaneContent = true;
 
@@ -395,16 +420,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	protected boolean textAntiAlias = true;
 
 	/**
-	 * Specifies <escape> should be invoked when the escape key
-	 * is pressed. Default is true.
+	 * Specifies <escape> should be invoked when the escape key is pressed.
+	 * Default is true.
 	 */
 	protected boolean escapeEnabled = true;
 
 	/**
-	 * If true, when editing is to be stopped by way of selection changing,
-	 * data in diagram changing or other means stopCellEditing is invoked, and
-	 * changes are saved. This is implemented in a mouse listener in this
-	 * class. Default is true.
+	 * If true, when editing is to be stopped by way of selection changing, data
+	 * in diagram changing or other means stopCellEditing is invoked, and
+	 * changes are saved. This is implemented in a mouse listener in this class.
+	 * Default is true.
 	 */
 	protected boolean invokesStopCellEditing = true;
 
@@ -427,28 +452,25 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	private transient boolean zooming = false;
 
 	/**
-	 * Specifies the factor used for zoomIn and zoomOut. Default is 1.2
-	 * (120%).
+	 * Specifies the factor used for zoomIn and zoomOut. Default is 1.2 (120%).
 	 */
 	protected double zoomFactor = 1.2;
 
 	/**
-	 * Specifies if the viewport should automatically contain
-	 * the selection cells after a zoom operation. Default
-	 * is false.
+	 * Specifies if the viewport should automatically contain the selection
+	 * cells after a zoom operation. Default is false.
 	 */
 	protected boolean keepSelectionVisibleOnZoom = false;
 
 	/**
-	 * Specifies if the zoom operations should go into the center
-	 * of the actual diagram rather than going from top, left.
-	 * Default is true.
+	 * Specifies if the zoom operations should go into the center of the actual
+	 * diagram rather than going from top, left. Default is true.
 	 */
 	protected boolean centerZoom = true;
 
 	/**
-	 * Specifies if an image buffer should be used for painting the
-	 * component. Default is false.
+	 * Specifies if an image buffer should be used for painting the component.
+	 * Default is false.
 	 */
 	protected boolean tripleBuffered = false;
 
@@ -458,12 +480,12 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	public boolean showDirtyRectangle = false;
 
 	/**
-	 * Maps from cells to lists of heavyweights. 
+	 * Maps from cells to lists of heavyweights.
 	 */
-	protected ConcurrentHashMap<Object, Component[]> components = new ConcurrentHashMap<Object, Component[]>();
+	protected Hashtable<Object, Component[]> components = new Hashtable<Object, Component[]>();
 
 	/**
-	 * Maps from cells to lists of overlays. 
+	 * Maps from cells to lists of overlays.
 	 */
 	protected Hashtable<Object, mxICellOverlay[]> overlays = new Hashtable<Object, mxICellOverlay[]>();
 
@@ -503,7 +525,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 			repaintTripleBuffer(rect);
 
 			// Repaints the control using the optional triple buffer
-			graphControl.repaint((rect != null) ? rect : getViewport().getViewRect());
+			graphControl.repaint((rect != null) ? rect : getViewport()
+					.getViewRect());
 
 			// ----------------------------------------------------------
 			// Shows the dirty region as a red rectangle (for debugging)
@@ -562,7 +585,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 				{
 					newView.addListener(mxEvent.SCALE, updateHandler);
 					newView.addListener(mxEvent.TRANSLATE, updateHandler);
-					newView.addListener(mxEvent.SCALE_AND_TRANSLATE,updateHandler);
+					newView.addListener(mxEvent.SCALE_AND_TRANSLATE,
+							updateHandler);
 					newView.addListener(mxEvent.UP, updateHandler);
 					newView.addListener(mxEvent.DOWN, updateHandler);
 				}
@@ -603,8 +627,6 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		}
 	};
 
-	private Validator validator=null;
-
 	/**
 	 * 
 	 * @param graph
@@ -612,11 +634,26 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	public mxGraphComponent(mxGraph graph)
 	{
 		setCellEditor(createCellEditor());
-		this.canvas = createCanvas();
+		canvas = createCanvas();
 
-		// Initializes the buffered view and installs a handler
-		// to set the focus to the container
+		// Initializes the buffered view and
 		graphControl = createGraphControl();
+		installFocusHandler();
+		installKeyHandler();
+		installResizeHandler();
+		setGraph(graph);
+
+		// Adds the viewport view and initializes handlers
+		setViewportView(graphControl);
+		createHandlers();
+		installDoubleClickHandler();
+	}
+
+	/**
+	 * installs a handler to set the focus to the container.
+	 */
+	protected void installFocusHandler()
+	{
 		graphControl.addMouseListener(new MouseAdapter()
 		{
 			public void mousePressed(MouseEvent e)
@@ -627,15 +664,15 @@ public class mxGraphComponent extends JScrollPane implements Printable
 				}
 			}
 		});
+	}
 
-		// Handles escape keystrokes
+	/**
+	 * Handles escape keystrokes.
+	 */
+	protected void installKeyHandler()
+	{
 		addKeyListener(new KeyAdapter()
 		{
-			/**
-			 * 
-			 * @param e
-			 * @return
-			 */
 			public void keyPressed(KeyEvent e)
 			{
 				if (e.getKeyCode() == KeyEvent.VK_ESCAPE && isEscapeEnabled())
@@ -644,60 +681,53 @@ public class mxGraphComponent extends JScrollPane implements Printable
 				}
 			}
 		});
+	}
 
-		// Applies the zoom policy if the size of the component changes
+	/**
+	 * Applies the zoom policy if the size of the component changes.
+	 */
+	protected void installResizeHandler()
+	{
 		addComponentListener(new ComponentAdapter()
 		{
-
-			/*
-			 * (non-Javadoc)
-			 * @see java.awt.event.ComponentAdapter#componentResized(java.awt.event.ComponentEvent)
-			 */
 			public void componentResized(ComponentEvent e)
 			{
 				zoomAndCenter();
 			}
 		});
+	}
 
-		setGraph(graph);
-
-		// Adds the viewport view and initializes handlers
-		setViewportView(graphControl);
-		createHandlers();
-
-		// Adds handling of edit and stop-edit events after all
-		// other handlers have been installed
+	/**
+	 * Adds handling of edit and stop-edit events after all other handlers have
+	 * been installed.
+	 */
+	protected void installDoubleClickHandler()
+	{
 		graphControl.addMouseListener(new MouseAdapter()
 		{
 			public void mouseReleased(MouseEvent e)
 			{
-				if (!e.isConsumed() && isEditEvent(e))
+				if (isEnabled())
 				{
-					Object cell = getCellAt(e.getX(), e.getY(), false);
-
-					if (cell != null && getGraph().isCellEditable(cell))
+					if (!e.isConsumed() && isEditEvent(e))
 					{
-						startEditingAtCell(cell, e);
+						Object cell = getCellAt(e.getX(), e.getY(), false);
+
+						if (cell != null && getGraph().isCellEditable(cell))
+						{
+							startEditingAtCell(cell, e);
+						}
 					}
-				}
-				else
-				{
-					// Other languages use focus traversal here, in Java
-					// we explicitely stop editing after a click elsewhere
-					stopEditing(!invokesStopCellEditing);
+					else
+					{
+						// Other languages use focus traversal here, in Java
+						// we explicitely stop editing after a click elsewhere
+						stopEditing(!invokesStopCellEditing);
+					}
 				}
 			}
 
 		});
-
-		setValidator(new Validator(this));
-	}
-
-	public void setValidator(Validator v) {
-		validator=v;
-	}
-	public Validator getValidator() {
-		return validator;
 	}
 
 	/**
@@ -711,19 +741,21 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void setGraph(mxGraph graph)
+	public void setGraph(mxGraph value)
 	{
+		mxGraph oldValue = graph;
+
 		// Uninstalls listeners for existing graph
-		if (this.graph != null)
+		if (graph != null)
 		{
-			this.graph.removeListener(repaintHandler);
-			this.graph.getModel().removeListener(updateHandler);
-			this.graph.getView().removeListener(updateHandler);
-			this.graph.removePropertyChangeListener(viewChangeHandler);
-			this.graph.getView().removeListener(scaleHandler);
+			graph.removeListener(repaintHandler);
+			graph.getModel().removeListener(updateHandler);
+			graph.getView().removeListener(updateHandler);
+			graph.removePropertyChangeListener(viewChangeHandler);
+			graph.getView().removeListener(scaleHandler);
 		}
 
-		this.graph = graph;
+		graph = value;
 
 		// Updates the buffer if the model changes
 		graph.addListener(mxEvent.REPAINT, repaintHandler);
@@ -731,9 +763,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		// Installs the update handler to sync the overlays and controls
 		graph.getModel().addListener(mxEvent.CHANGE, updateHandler);
 
-		graph.addPropertyChangeListener(viewChangeHandler);
-
-		// Repaint after the following events is handled via mxGraph.repaint-events
+		// Repaint after the following events is handled via
+		// mxGraph.repaint-events
 		// The respective handlers are installed in mxGraph.setView
 		mxGraphView view = graph.getView();
 
@@ -743,13 +774,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		view.addListener(mxEvent.UP, updateHandler);
 		view.addListener(mxEvent.DOWN, updateHandler);
 
+		graph.addPropertyChangeListener(viewChangeHandler);
 
 		// Resets the zoom policy if the scale changes
-		view.addListener(mxEvent.SCALE, scaleHandler);
-		view.addListener(mxEvent.SCALE_AND_TRANSLATE, scaleHandler);
+		graph.getView().addListener(mxEvent.SCALE, scaleHandler);
+		graph.getView().addListener(mxEvent.SCALE_AND_TRANSLATE, scaleHandler);
 
 		// Invoke the update handler once for initial state
-		updateHandler.invoke(view, null);
+		updateHandler.invoke(graph.getView(), null);
+
+		firePropertyChange("graph", oldValue, graph);
 	}
 
 	/**
@@ -762,8 +796,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Creates the inner control that handles tooltips, preferred size and
-	 * can draw cells onto a canvas.
+	 * Creates the inner control that handles tooltips, preferred size and can
+	 * draw cells onto a canvas.
 	 */
 	protected mxGraphControl createGraphControl()
 	{
@@ -780,17 +814,17 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Creates the connection-, panning and graphhandler (in this order). 
+	 * Creates the connection-, panning and graphhandler (in this order).
 	 */
 	protected void createHandlers()
 	{
 		setTransferHandler(createTransferHandler());
 		panningHandler = createPanningHandler();
-		subHandler = createSubHandler();
+		selectionCellsHandler = createSelectionCellsHandler();
 		connectionHandler = createConnectionHandler();
 		graphHandler = createGraphHandler();
 	}
-	
+
 	/**
 	 * 
 	 */
@@ -802,9 +836,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 *
 	 */
-	protected mxSubHandler createSubHandler()
+	protected mxSelectionCellsHandler createSelectionCellsHandler()
 	{
-		return new mxSubHandler(this);
+		return new mxSelectionCellsHandler(this);
 	}
 
 	/**
@@ -818,9 +852,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public mxSubHandler getSubHandler()
+	public mxSelectionCellsHandler getSelectionCellsHandler()
 	{
-		return subHandler;
+		return selectionCellsHandler;
 	}
 
 	/**
@@ -882,12 +916,12 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void setCellEditor(mxICellEditor editor)
+	public void setCellEditor(mxICellEditor value)
 	{
-		mxICellEditor oldValue = this.cellEditor;
-		this.cellEditor = editor;
+		mxICellEditor oldValue = cellEditor;
+		cellEditor = value;
 
-		firePropertyChange("cellEditor", oldValue, editor);
+		firePropertyChange("cellEditor", oldValue, cellEditor);
 	}
 
 	/**
@@ -899,12 +933,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param tolerance the tolerance to set
+	 * @param value
+	 *            the tolerance to set
 	 */
-	public void setTolerance(int tolerance)
+	public void setTolerance(int value)
 	{
-		int oldValue = this.tolerance;
-		this.tolerance = tolerance;
+		int oldValue = tolerance;
+		tolerance = value;
 
 		firePropertyChange("tolerance", oldValue, tolerance);
 	}
@@ -920,10 +955,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void setPageFormat(PageFormat pageFormat)
+	public void setPageFormat(PageFormat value)
 	{
-		PageFormat oldValue = this.pageFormat;
-		this.pageFormat = pageFormat;
+		PageFormat oldValue = pageFormat;
+		pageFormat = value;
 
 		firePropertyChange("pageFormat", oldValue, pageFormat);
 	}
@@ -939,10 +974,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void setPageScale(double pageScale)
+	public void setPageScale(double value)
 	{
-		double oldValue = this.pageScale;
-		this.pageScale = pageScale;
+		double oldValue = pageScale;
+		pageScale = value;
 
 		firePropertyChange("pageScale", oldValue, pageScale);
 	}
@@ -975,10 +1010,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void setBackgroundImage(ImageIcon image)
+	public void setBackgroundImage(ImageIcon value)
 	{
 		ImageIcon oldValue = backgroundImage;
-		backgroundImage = image;
+		backgroundImage = value;
 
 		firePropertyChange("backgroundImage", oldValue, backgroundImage);
 	}
@@ -992,15 +1027,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Fires a property change event for <code>pageVisible</code>.
-	 * zoomAndCenter should be called if this is set to true.
+	 * Fires a property change event for <code>pageVisible</code>. zoomAndCenter
+	 * should be called if this is set to true.
 	 * 
-	 * @param pageVisible the pageVisible to set
+	 * @param value
+	 *            the pageVisible to set
 	 */
-	public void setPageVisible(boolean pageVisible)
+	public void setPageVisible(boolean value)
 	{
-		boolean oldValue = this.pageVisible;
-		this.pageVisible = pageVisible;
+		boolean oldValue = pageVisible;
+		pageVisible = value;
 
 		firePropertyChange("pageVisible", oldValue, pageVisible);
 	}
@@ -1016,42 +1052,61 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Fires a property change event for <code>preferPageSize</code>.
 	 * 
-	 * @param preferPageSize the preferPageSize to set
+	 * @param value
+	 *            the preferPageSize to set
 	 */
-	public void setPreferPageSize(boolean preferPageSize)
+	public void setPreferPageSize(boolean value)
 	{
-		boolean oldValue = this.preferPageSize;
-		this.preferPageSize = preferPageSize;
+		boolean oldValue = preferPageSize;
+		preferPageSize = value;
 
 		firePropertyChange("preferPageSize", oldValue, preferPageSize);
 	}
 
 	/**
-	 * @return the pageVisible
+	 * @return the pageBreaksVisible
 	 */
-	public boolean isPageBreakVisible()
+	public boolean isPageBreaksVisible()
 	{
-		return pageBreakVisible;
+		return pageBreaksVisible;
 	}
 
 	/**
-	 * @param pageBreakVisible the pageBreakVisible to set
+	 * @param value
+	 *            the pageBreaksVisible to set
 	 */
-	public void setPageBreakVisible(boolean pageBreakVisible)
+	public void setPageBreaksVisible(boolean value)
 	{
-		boolean oldValue = this.pageBreakVisible;
-		this.pageBreakVisible = pageBreakVisible;
+		boolean oldValue = pageBreaksVisible;
+		pageBreaksVisible = value;
 
-		firePropertyChange("pageBreakVisible", oldValue, pageVisible);
+		firePropertyChange("pageBreaksVisible", oldValue, pageBreaksVisible);
 	}
 
 	/**
-	 * @param horizontalPageCount the horizontalPageCount to set
+	 * @return the pageBreakColor
 	 */
-	public void setHorizontalPageCount(int horizontalPageCount)
+	public Color getPageBreakColor()
 	{
-		int oldValue = this.horizontalPageCount;
-		this.horizontalPageCount = horizontalPageCount;
+		return pageBreakColor;
+	}
+
+	/**
+	 * @param pageBreakColor the pageBreakColor to set
+	 */
+	public void setPageBreakColor(Color pageBreakColor)
+	{
+		this.pageBreakColor = pageBreakColor;
+	}
+
+	/**
+	 * @param value
+	 *            the horizontalPageCount to set
+	 */
+	public void setHorizontalPageCount(int value)
+	{
+		int oldValue = horizontalPageCount;
+		horizontalPageCount = value;
 
 		firePropertyChange("horizontalPageCount", oldValue, horizontalPageCount);
 	}
@@ -1065,12 +1120,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param verticalPageCount the verticalPageCount to set
+	 * @param value
+	 *            the verticalPageCount to set
 	 */
-	public void setVerticalPageCount(int verticalPageCount)
+	public void setVerticalPageCount(int value)
 	{
-		int oldValue = this.verticalPageCount;
-		this.verticalPageCount = verticalPageCount;
+		int oldValue = verticalPageCount;
+		verticalPageCount = value;
 
 		firePropertyChange("verticalPageCount", oldValue, verticalPageCount);
 	}
@@ -1094,12 +1150,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * zoomAndCenter should be called if this is set to true.
 	 * 
-	 * @param centerPage the centerPage to set
+	 * @param value
+	 *            the centerPage to set
 	 */
-	public void setCenterPage(boolean centerPage)
+	public void setCenterPage(boolean value)
 	{
-		boolean oldValue = this.centerPage;
-		this.centerPage = centerPage;
+		boolean oldValue = centerPage;
+		centerPage = value;
 
 		firePropertyChange("centerPage", oldValue, centerPage);
 	}
@@ -1115,12 +1172,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Sets the color that appears behind the page.
 	 * 
-	 * @param pageBackgroundColor the pageBackgroundColor to set
+	 * @param value
+	 *            the pageBackgroundColor to set
 	 */
-	public void setPageBackgroundColor(Color pageBackgroundColor)
+	public void setPageBackgroundColor(Color value)
 	{
-		Color oldValue = this.pageBackgroundColor;
-		this.pageBackgroundColor = pageBackgroundColor;
+		Color oldValue = pageBackgroundColor;
+		pageBackgroundColor = value;
 
 		firePropertyChange("pageBackgroundColor", oldValue, pageBackgroundColor);
 	}
@@ -1134,12 +1192,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param pageShadowColor the pageShadowColor to set
+	 * @param value
+	 *            the pageShadowColor to set
 	 */
-	public void setPageShadowColor(Color pageShadowColor)
+	public void setPageShadowColor(Color value)
 	{
-		Color oldValue = this.pageShadowColor;
-		this.pageShadowColor = pageShadowColor;
+		Color oldValue = pageShadowColor;
+		pageShadowColor = value;
 
 		firePropertyChange("pageShadowColor", oldValue, pageShadowColor);
 	}
@@ -1153,12 +1212,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param pageBorderColor the pageBorderColor to set
+	 * @param value
+	 *            the pageBorderColor to set
 	 */
-	public void setPageBorderColor(Color pageBorderColor)
+	public void setPageBorderColor(Color value)
 	{
-		Color oldValue = this.pageBorderColor;
-		this.pageBorderColor = pageBorderColor;
+		Color oldValue = pageBorderColor;
+		pageBorderColor = value;
 
 		firePropertyChange("pageBorderColor", oldValue, pageBorderColor);
 	}
@@ -1172,12 +1232,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param keepSelectionVisibleOnZoom the keepSelectionVisibleOnZoom to set
+	 * @param value
+	 *            the keepSelectionVisibleOnZoom to set
 	 */
-	public void setKeepSelectionVisibleOnZoom(boolean keepSelectionVisibleOnZoom)
+	public void setKeepSelectionVisibleOnZoom(boolean value)
 	{
-		boolean oldValue = this.keepSelectionVisibleOnZoom;
-		this.keepSelectionVisibleOnZoom = keepSelectionVisibleOnZoom;
+		boolean oldValue = keepSelectionVisibleOnZoom;
+		keepSelectionVisibleOnZoom = value;
 
 		firePropertyChange("keepSelectionVisibleOnZoom", oldValue,
 				keepSelectionVisibleOnZoom);
@@ -1192,12 +1253,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param zoomFactor the zoomFactor to set
+	 * @param value
+	 *            the zoomFactor to set
 	 */
-	public void setZoomFactor(double zoomFactor)
+	public void setZoomFactor(double value)
 	{
-		double oldValue = this.zoomFactor;
-		this.zoomFactor = zoomFactor;
+		double oldValue = zoomFactor;
+		zoomFactor = value;
 
 		firePropertyChange("zoomFactor", oldValue, zoomFactor);
 	}
@@ -1211,12 +1273,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param centerZoom the centerZoom to set
+	 * @param value
+	 *            the centerZoom to set
 	 */
-	public void setCenterZoom(boolean centerZoom)
+	public void setCenterZoom(boolean value)
 	{
-		boolean oldValue = this.centerZoom;
-		this.centerZoom = centerZoom;
+		boolean oldValue = centerZoom;
+		centerZoom = value;
 
 		firePropertyChange("centerZoom", oldValue, centerZoom);
 	}
@@ -1224,10 +1287,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void setZoomPolicy(int zoomPolicy)
+	public void setZoomPolicy(int value)
 	{
-		int oldValue = this.zoomPolicy;
-		this.zoomPolicy = zoomPolicy;
+		int oldValue = zoomPolicy;
+		zoomPolicy = value;
 
 		if (zoomPolicy != ZOOM_POLICY_NONE)
 		{
@@ -1252,15 +1315,31 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	public void escape(KeyEvent e)
 	{
-		cellEditor.stopEditing(true);
-		graphHandler.reset();
-		connectionHandler.reset();
+		if (selectionCellsHandler != null)
+		{
+			selectionCellsHandler.reset();
+		}
+
+		if (connectionHandler != null)
+		{
+			connectionHandler.reset();
+		}
+
+		if (graphHandler != null)
+		{
+			graphHandler.reset();
+		}
+
+		if (cellEditor != null)
+		{
+			cellEditor.stopEditing(true);
+		}
 	}
 
 	/**
-	 * Clones and inserts the given cells into the graph using the move
-	 * method and returns the inserted cells. This shortcut is used if
-	 * cells are inserted via datatransfer.
+	 * Clones and inserts the given cells into the graph using the move method
+	 * and returns the inserted cells. This shortcut is used if cells are
+	 * inserted via datatransfer.
 	 */
 	public Object[] importCells(Object[] cells, double dx, double dy,
 			Object target, Point location)
@@ -1274,7 +1353,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	public void refresh()
 	{
 		graph.refresh();
-		subHandler.refresh();
+		selectionCellsHandler.refresh();
 	}
 
 	/**
@@ -1283,13 +1362,21 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	public mxPoint getPointForEvent(MouseEvent e)
 	{
+		return getPointForEvent(e, true);
+	}
+
+	/**
+	 * Returns an mxPoint representing the given event in the unscaled,
+	 * non-translated coordinate space and applies the grid.
+	 */
+	public mxPoint getPointForEvent(MouseEvent e, boolean addOffset)
+	{
 		double s = graph.getView().getScale();
 		mxPoint tr = graph.getView().getTranslate();
 
-		double x = graph.snap(e.getX() / s - tr.getX() - graph.getGridSize()
-				/ 2);
-		double y = graph.snap(e.getY() / s - tr.getY() - graph.getGridSize()
-				/ 2);
+		double off = (addOffset) ? graph.getGridSize() / 2 : 0;
+		double x = graph.snap(e.getX() / s - tr.getX() - off);
+		double y = graph.snap(e.getY() / s - tr.getY() - off);
 
 		return new mxPoint(x, y);
 	}
@@ -1354,9 +1441,12 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 * mxGraph.cellLabelChanged and fires mxEvent.LABEL_CHANGED while the
 	 * transaction is in progress. Returns the cell whose label was changed.
 	 * 
-	 * @param cell Cell whose label should be changed.
-	 * @param value New value of the label.
-	 * @param evt Optional event that triggered the change.
+	 * @param cell
+	 *            Cell whose label should be changed.
+	 * @param value
+	 *            New value of the label.
+	 * @param evt
+	 *            Optional event that triggered the change.
 	 */
 	public Object labelChanged(Object cell, Object value, EventObject evt)
 	{
@@ -1378,8 +1468,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Returns the (unscaled) preferred size for the current page format
-	 * (scaled by pageScale).
+	 * Returns the (unscaled) preferred size for the current page format (scaled
+	 * by pageScale).
 	 */
 	protected Dimension getPreferredSizeForPage()
 	{
@@ -1412,8 +1502,11 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		mxRectangle bounds = graph.getGraphBounds();
 		int border = graph.getBorder();
 
-		return new Dimension((int) Math.round(bounds.getWidth()) + border + 1,
-				(int) Math.round(bounds.getHeight()) + border + 1);
+		return new Dimension(
+				(int) Math.round(bounds.getX() + bounds.getWidth()) + border
+						+ 1, (int) Math.round(bounds.getY()
+						+ bounds.getHeight())
+						+ border + 1);
 	}
 
 	/**
@@ -1442,9 +1535,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Invoked after the component was resized to update the zoom if the
-	 * zoom policy is not none and/or update the translation of the diagram
-	 * if pageVisible and centerPage are true.
+	 * Invoked after the component was resized to update the zoom if the zoom
+	 * policy is not none and/or update the translation of the diagram if
+	 * pageVisible and centerPage are true.
 	 */
 	public void zoomAndCenter()
 	{
@@ -1471,7 +1564,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	public void zoomIn()
 	{
-		zoomIn(null);
+		zoom(zoomFactor);
 	}
 
 	/**
@@ -1481,65 +1574,34 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	public void zoomOut()
 	{
-		zoomOut(null);
-	}
-	public void zoomIn(Point centerPoint) {
-		zoom(zoomFactor,centerPoint);
+		zoom(1 / zoomFactor);
 	}
 
-	public void zoomOut(Point centerPoint) {
-		zoom(1/zoomFactor,centerPoint);
-	}
 	/**
 	 * 
 	 */
-	public void zoom(double factor) {
-		zoom(factor,null);
-	}
-	private Semaphore zoomInProgress=new Semaphore(1);
-	public void zoom(final double factor,final Point centerPoint)
+	public void zoom(double factor)
 	{
-		if (zoomInProgress.tryAcquire()) {
-			mxGraphView view = graph.getView();
-			double newScale;
-			if (factor>1)
-				newScale = (double) (Math.ceil(view.getScale() * 100 * factor)) / 100;
-			else
-				newScale = (double) (Math.floor(view.getScale() * 100 * factor)) / 100;
-			if (newScale != view.getScale() && newScale > 0.01)
+		mxGraphView view = graph.getView();
+		double newScale = (double) ((int) (view.getScale() * 100 * factor)) / 100;
+
+		if (newScale != view.getScale() && newScale > 0.04)
+		{
+			mxPoint translate = (pageVisible && centerPage) ? getPageTranslate(newScale)
+					: new mxPoint();
+			graph.getView().scaleAndTranslate(newScale, translate.getX(),
+					translate.getY());
+
+			if (keepSelectionVisibleOnZoom && !graph.isSelectionEmpty())
 			{
-				mxPoint translate = (pageVisible && centerPage) ? getPageTranslate(newScale)
-						: new mxPoint(0,0);
-
-				final int oldHorizontalValue=getHorizontalScrollBar().getModel().getValue();
-				final int oldVerticalValue=getVerticalScrollBar().getModel().getValue();
-
-				repaintEnabled=false;
-				graph.getView().scaleAndTranslate(newScale, translate.getX(),translate.getY());
-
-				if (keepSelectionVisibleOnZoom && !graph.isSelectionEmpty())
-				{
-					getGraphControl().scrollRectToVisible(
-							view.getBoundingBox(graph.getSelectionCells())
-							.getRectangle());
-					zoomInProgress.release();
-				}
-				else
-				{
-					SwingUtilities.invokeLater(new Runnable()
-					{
-						public void run()
-						{
-							maintainScrollBar(true, oldHorizontalValue,factor, centerZoom,centerPoint);
-							maintainScrollBar(false, oldVerticalValue,factor, centerZoom,centerPoint);
-							repaintEnabled=true;
-							graphControl.repaint();
-							zoomInProgress.release();
-						}
-					});
-				}
-			} else {
-				zoomInProgress.release();
+				getGraphControl().scrollRectToVisible(
+						view.getBoundingBox(graph.getSelectionCells())
+								.getRectangle());
+			}
+			else
+			{
+				maintainScrollBar(true, factor, centerZoom);
+				maintainScrollBar(false, factor, centerZoom);
 			}
 		}
 	}
@@ -1549,39 +1611,29 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	public void zoomTo(final double newScale, final boolean center)
 	{
-		if (zoomInProgress.tryAcquire()) {
-			mxGraphView view = graph.getView();
-			final double scale = view.getScale();
+		mxGraphView view = graph.getView();
+		final double scale = view.getScale();
 
-			mxPoint translate = (pageVisible && centerPage) ? getPageTranslate(newScale)
-					: new mxPoint();
+		mxPoint translate = (pageVisible && centerPage) ? getPageTranslate(newScale)
+				: new mxPoint();
+		graph.getView().scaleAndTranslate(newScale, translate.getX(),
+				translate.getY());
 
-			final int oldHorizontalValue=getHorizontalScrollBar().getModel().getValue();
-			final int oldVerticalValue=getVerticalScrollBar().getModel().getValue();
-
-			repaintEnabled=false;
-			graph.getView().scaleAndTranslate(newScale, translate.getX(),
-					translate.getY());
-
-			// Causes two repaints on the scrollpane, namely one for the scale
-			// change with the new preferred size and one for the change of
-			// the scrollbar position. The latter cannot be done immediately
-			// because the scrollbar keeps the value <= max - extent, and if
-			// max is changed the value change will trigger a syncScrollPane
-			// WithViewport in BasicScrollPaneUI, which will update the value
-			// for the previous maximum (ie. it must be invoked later).
-			SwingUtilities.invokeLater(new Runnable()
+		// Causes two repaints on the scrollpane, namely one for the scale
+		// change with the new preferred size and one for the change of
+		// the scrollbar position. The latter cannot be done immediately
+		// because the scrollbar keeps the value <= max - extent, and if
+		// max is changed the value change will trigger a syncScrollPane
+		// WithViewport in BasicScrollPaneUI, which will update the value
+		// for the previous maximum (ie. it must be invoked later).
+		SwingUtilities.invokeLater(new Runnable()
+		{
+			public void run()
 			{
-				public void run()
-				{
-					maintainScrollBar(true,oldHorizontalValue, newScale / scale, center);
-					maintainScrollBar(false, oldVerticalValue,newScale / scale, center);
-					repaintEnabled=true;
-					graphControl.repaint();
-					zoomInProgress.release();
-				}
-			});
-		}
+				maintainScrollBar(true, newScale / scale, center);
+				maintainScrollBar(false, newScale / scale, center);
+			}
+		});
 	}
 
 	/**
@@ -1615,8 +1667,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 						if (scrollBar != null)
 						{
-							scrollBar
-									.setValue((int) (scrollBar.getMaximum() / 3) - 4);
+							scrollBar.setValue((scrollBar.getMaximum() / 3) - 4);
 						}
 					}
 
@@ -1630,8 +1681,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 						if (scrollBar != null)
 						{
-							scrollBar
-									.setValue((int) (scrollBar.getMaximum() / 4) - 4);
+							scrollBar.setValue((scrollBar.getMaximum() / 4) - 4);
 						}
 					}
 				}
@@ -1650,9 +1700,11 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 			try
 			{
+				int off = (getPageShadowColor() != null) ? 8 : 0;
+				
 				// Adds some extra space for the shadow and border
-				double width = getViewport().getWidth() - 8;
-				double height = getViewport().getHeight() - 8;
+				double width = getViewport().getWidth() - off;
+				double height = getViewport().getHeight() - off;
 
 				Dimension d = getPreferredSizeForPage();
 				double pageWidth = d.width;
@@ -1671,10 +1723,6 @@ public class mxGraphComponent extends JScrollPane implements Printable
 					final double scale = graphView.getScale();
 					mxPoint translate = (centerPage) ? getPageTranslate(newScale)
 							: new mxPoint();
-										
-					final int oldHorizontalValue=getHorizontalScrollBar().getModel().getValue();
-					final int oldVerticalValue=getVerticalScrollBar().getModel().getValue();
-					
 					graphView.scaleAndTranslate(newScale, translate.getX(),
 							translate.getY());
 
@@ -1695,13 +1743,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 								else
 								{
 									scrollToCenter(true);
-									maintainScrollBar(false, oldVerticalValue,factor, false);
+									maintainScrollBar(false, factor, false);
 								}
 							}
 							else if (factor != 1)
 							{
-								maintainScrollBar(true, oldHorizontalValue,factor, false);
-								maintainScrollBar(false, oldVerticalValue,factor, false);
+								maintainScrollBar(true, factor, false);
+								maintainScrollBar(false, factor, false);
 							}
 						}
 					});
@@ -1714,38 +1762,22 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		}
 	}
 
-	protected int computeDeltaForZoomCenterScroolbar(int v, double factor,int centerPos, double extentRatio)
+	/**
+	 *
+	 */
+	protected void maintainScrollBar(boolean horizontal, double factor,
+			boolean center)
 	{
-		return (int) Math.round((centerPos-v)*(factor-extentRatio));
-	}
-	protected void maintainScrollBar(boolean horizontal, final int oldValue,double factor,boolean center) {
-		maintainScrollBar(horizontal, oldValue,factor, center, null);
-	}
-	protected void maintainScrollBar(boolean horizontal,final int oldValue,final double factor,boolean center, Point centerPoint)
-	{
-		JScrollBar scrollBar = (horizontal) ? getHorizontalScrollBar() : getVerticalScrollBar();
-		final int pos;
-				
+		JScrollBar scrollBar = (horizontal) ? getHorizontalScrollBar()
+				: getVerticalScrollBar();
+
 		if (scrollBar != null)
 		{
-			final BoundedRangeModel model = scrollBar.getModel();
-			final int ex=model.getExtent();
-			if (centerPoint!=null) {
-				pos =(int)Math.round((horizontal) ? centerPoint.getX():centerPoint.getY());
-			} else {
-				if (center) {
-					pos=oldValue+Math.round((model.getExtent()/2));
-				} else {
-					pos=oldValue;
-				}
-			}
-
-			//System.out.println("v="+v+" ex="+ex+" pos="+pos+" f="+factor+" nex="+model.getExtent());
-			final int newValue = (int) Math.round((double)oldValue * factor)+computeDeltaForZoomCenterScroolbar(oldValue,factor,pos,(double)model.getExtent()/(double)ex);
-			//System.out.println("nv="+newValue+" delta="+computeDeltaForZoomCenterScroolbar(v,factor,pos,(double)model.getExtent()/(double)ex));
+			BoundedRangeModel model = scrollBar.getModel();
+			int newValue = (int) Math.round(model.getValue() * factor)
+					+ (int) Math.round((center) ? (model.getExtent()
+							* (factor - 1) / 2) : 0);
 			model.setValue(newValue);
-
-			//model.setRangeProperties(newValue,model.getExtent(),0,(int)Math.round(model.getMaximum()*factor),true);
 		}
 	}
 
@@ -1760,8 +1792,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		if (scrollBar != null)
 		{
 			final BoundedRangeModel model = scrollBar.getModel();
-			final int newValue = (int) ((model.getMaximum()) / 2)
-					- model.getExtent() / 2;
+			final int newValue = ((model.getMaximum()) / 2) - model.getExtent()
+					/ 2;
 			model.setValue(newValue);
 		}
 	}
@@ -1826,29 +1858,28 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		return getCellAt(x, y, hitSwimlaneContent, null);
 	}
 
-	public Object getCellAt(int x, int y, boolean hitSwimlaneContent,Object parent) {
-		return getCellAt(x, y, hitSwimlaneContent, parent, null,false);
-	}
 	/**
 	 * Returns the bottom-most cell that intersects the given point (x, y) in
 	 * the cell hierarchy starting at the given parent.
 	 * 
-	 * @param x X-coordinate of the location to be checked.
-	 * @param y Y-coordinate of the location to be checked.
-	 * @param parent  <mxCell> that should be used as the root of the recursion.
-	 * Default is <defaultParent>.
+	 * @param x
+	 *            X-coordinate of the location to be checked.
+	 * @param y
+	 *            Y-coordinate of the location to be checked.
+	 * @param parent
+	 *            <mxCell> that should be used as the root of the recursion.
+	 *            Default is <defaultParent>.
 	 * @return Returns the child at the given location.
 	 */
-	public Object getCellAt(int x, int y, boolean hitSwimlaneContent,Object parent,Object avoidThis,boolean onlyNodes)
+	public Object getCellAt(int x, int y, boolean hitSwimlaneContent,
+			Object parent)
 	{
 		if (parent == null)
 		{
 			parent = graph.getDefaultParent();
 		}
 
-		mxIGraphModel model = graph.getModel();
-
-		if (parent != null && (parent!=avoidThis) && (!onlyNodes || model.isVertex(parent)))
+		if (parent != null)
 		{
 			Point previousTranslate = canvas.getTranslate();
 			double previousScale = canvas.getScale();
@@ -1858,28 +1889,34 @@ public class mxGraphComponent extends JScrollPane implements Printable
 				canvas.setScale(graph.getView().getScale());
 				canvas.setTranslate(0, 0);
 
+				mxIGraphModel model = graph.getModel();
 				mxGraphView view = graph.getView();
 
-				Rectangle hit = new Rectangle(x, y, 1, 1);				
+				Rectangle hit = new Rectangle(x, y, 1, 1);
 				int childCount = model.getChildCount(parent);
 
 				for (int i = childCount - 1; i >= 0; i--)
 				{
 					Object cell = model.getChildAt(parent, i);
-					if (!onlyNodes || model.isVertex(cell)) {
-						Object result = getCellAt(x, y, hitSwimlaneContent, cell,avoidThis,onlyNodes);
+					Object result = getCellAt(x, y, hitSwimlaneContent, cell);
 
-						if ((result != null) && (avoidThis!=result))
+					if (result != null)
+					{
+						return result;
+					}
+					else if (graph.isCellVisible(cell))
+					{
+						mxCellState state = view.getState(cell);
+
+						if (state != null
+								&& canvas.intersects(this, hit, state)
+								&& (!graph.isSwimlane(cell)
+										|| hitSwimlaneContent || (transparentSwimlaneContent && !canvas
+										.hitSwimlaneContent(this, state, x, y))))
 						{
-							return result;
-						}
-						else if ((avoidThis!=cell) && doesThisRectangleIntersectThisCell(hit, cell, hitSwimlaneContent, view)) {
 							return cell;
 						}
 					}
-				}
-				if (doesThisRectangleIntersectThisCell(hit, parent, hitSwimlaneContent, view)) {
-					return parent;
 				}
 			}
 			finally
@@ -1892,40 +1929,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		return null;
 	}
 
-	/**returns the list of siblings of the given cell including the given cell. By default each cell has no siblings.
-	 * @param c
-	 * @return
-	 */
-	public Collection<Object> getSiblingsOfCell(Object c) {
-		ArrayList<Object> ret = new ArrayList<Object>();
-		ret.add(c);
-		return ret;
-	}
-	
-	public boolean doesThisRectangleIntersectThisCell(Rectangle hit,Object cell,boolean hitSwimlaneContent,mxGraphView view) {
-		if (graph.isCellVisible(cell)) {			
-			if (view==null) view = graph.getView();
-			mxCellState state = view.getState(cell);
-
-			if (state != null
-					&& canvas.intersects(this, hit, state)
-					&& (!graph.isSwimlane(cell)
-							|| hitSwimlaneContent || (transparentSwimlaneContent && !canvas
-									.hitSwimlaneContent(this, state, hit.x, hit.y))))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-	
 	/**
 	 * 
 	 */
-	public void setSwimlaneSelectionEnabled(boolean swimlaneSelectionEnabled)
+	public void setSwimlaneSelectionEnabled(boolean value)
 	{
-		boolean oldValue = this.swimlaneSelectionEnabled;
-		this.swimlaneSelectionEnabled = swimlaneSelectionEnabled;
+		boolean oldValue = swimlaneSelectionEnabled;
+		swimlaneSelectionEnabled = value;
 
 		firePropertyChange("swimlaneSelectionEnabled", oldValue,
 				swimlaneSelectionEnabled);
@@ -1971,8 +1981,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Returns the children of the given parent that are contained in the given
 	 * rectangle (x, y, width, height). The result is added to the optional
-	 * result array, which is returned from the function. If no result array
-	 * is specified then a new array is created and returned.
+	 * result array, which is returned from the function. If no result array is
+	 * specified then a new array is created and returned.
 	 * 
 	 * @return Returns the children inside the given rectangle.
 	 */
@@ -2082,12 +2092,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Returns the icon used to display the collapsed state of
-	 * the specified cell state.
+	 * Returns the icon used to display the collapsed state of the specified
+	 * cell state. This returns null for all edges.
 	 */
 	public ImageIcon getFoldingIcon(mxCellState state)
 	{
-		if (state != null)
+		if (state != null && isFoldingEnabled()
+				&& !getGraph().getModel().isEdge(state.getCell()))
 		{
 			Object cell = state.getCell();
 			boolean tmp = graph.isCellCollapsed(cell);
@@ -2166,12 +2177,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		if (enabled)
 		{
 			ToolTipManager.sharedInstance().registerComponent(graphControl);
-			ToolTipManager.sharedInstance().registerComponent(subHandler);
 		}
 		else
 		{
 			ToolTipManager.sharedInstance().unregisterComponent(graphControl);
-			ToolTipManager.sharedInstance().unregisterComponent(subHandler);
 		}
 	}
 
@@ -2208,6 +2217,40 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
+	 * @return the autoScroll
+	 */
+	public boolean isAutoScroll()
+	{
+		return autoScroll;
+	}
+
+	/**
+	 * @param value
+	 *            the autoScroll to set
+	 */
+	public void setAutoScroll(boolean value)
+	{
+		autoScroll = value;
+	}
+
+	/**
+	 * @return the autoExtend
+	 */
+	public boolean isAutoExtend()
+	{
+		return autoExtend;
+	}
+
+	/**
+	 * @param value
+	 *            the autoExtend to set
+	 */
+	public void setAutoExtend(boolean value)
+	{
+		autoExtend = value;
+	}
+
+	/**
 	 * @return the escapeEnabled
 	 */
 	public boolean isEscapeEnabled()
@@ -2216,12 +2259,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param escapeEnabled the escapeEnabled to set
+	 * @param value
+	 *            the escapeEnabled to set
 	 */
-	public void setEscapeEnabled(boolean escapeEnabled)
+	public void setEscapeEnabled(boolean value)
 	{
-		boolean oldValue = this.escapeEnabled;
-		this.escapeEnabled = escapeEnabled;
+		boolean oldValue = escapeEnabled;
+		escapeEnabled = value;
 
 		firePropertyChange("escapeEnabled", oldValue, escapeEnabled);
 	}
@@ -2235,12 +2279,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param invokesStopCellEditing the invokesStopCellEditing to set
+	 * @param value
+	 *            the invokesStopCellEditing to set
 	 */
-	public void setInvokesStopCellEditing(boolean invokesStopCellEditing)
+	public void setInvokesStopCellEditing(boolean value)
 	{
-		boolean oldValue = this.invokesStopCellEditing;
-		this.invokesStopCellEditing = invokesStopCellEditing;
+		boolean oldValue = invokesStopCellEditing;
+		invokesStopCellEditing = value;
 
 		firePropertyChange("invokesStopCellEditing", oldValue,
 				invokesStopCellEditing);
@@ -2255,12 +2300,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param enterStopsCellEditing the enterStopsCellEditing to set
+	 * @param value
+	 *            the enterStopsCellEditing to set
 	 */
-	public void setEnterStopsCellEditing(boolean enterStopsCellEditing)
+	public void setEnterStopsCellEditing(boolean value)
 	{
-		boolean oldValue = this.enterStopsCellEditing;
-		this.enterStopsCellEditing = enterStopsCellEditing;
+		boolean oldValue = enterStopsCellEditing;
+		enterStopsCellEditing = value;
 
 		firePropertyChange("enterStopsCellEditing", oldValue,
 				enterStopsCellEditing);
@@ -2275,12 +2321,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param dragEnabled the dragEnabled to set
+	 * @param value
+	 *            the dragEnabled to set
 	 */
-	public void setDragEnabled(boolean dragEnabled)
+	public void setDragEnabled(boolean value)
 	{
-		boolean oldValue = this.dragEnabled;
-		this.dragEnabled = dragEnabled;
+		boolean oldValue = dragEnabled;
+		dragEnabled = value;
 
 		firePropertyChange("dragEnabled", oldValue, dragEnabled);
 	}
@@ -2296,12 +2343,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Fires a property change event for <code>gridVisible</code>.
 	 * 
-	 * @param gridVisible the gridVisible to set
+	 * @param value
+	 *            the gridVisible to set
 	 */
-	public void setGridVisible(boolean gridVisible)
+	public void setGridVisible(boolean value)
 	{
-		boolean oldValue = this.gridVisible;
-		this.gridVisible = gridVisible;
+		boolean oldValue = gridVisible;
+		gridVisible = value;
 
 		firePropertyChange("gridVisible", oldValue, gridVisible);
 	}
@@ -2317,12 +2365,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Fires a property change event for <code>antiAlias</code>.
 	 * 
-	 * @param antiAlias the antiAlias to set
+	 * @param value
+	 *            the antiAlias to set
 	 */
-	public void setAntiAlias(boolean antiAlias)
+	public void setAntiAlias(boolean value)
 	{
-		boolean oldValue = this.antiAlias;
-		this.antiAlias = antiAlias;
+		boolean oldValue = antiAlias;
+		antiAlias = value;
 
 		firePropertyChange("antiAlias", oldValue, antiAlias);
 	}
@@ -2338,14 +2387,34 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Fires a property change event for <code>textAntiAlias</code>.
 	 * 
-	 * @param textAntiAlias the textAntiAlias to set
+	 * @param value
+	 *            the textAntiAlias to set
 	 */
-	public void setTextAntiAlias(boolean textAntiAlias)
+	public void setTextAntiAlias(boolean value)
 	{
-		boolean oldValue = this.textAntiAlias;
-		this.textAntiAlias = textAntiAlias;
+		boolean oldValue = textAntiAlias;
+		textAntiAlias = value;
 
 		firePropertyChange("textAntiAlias", oldValue, textAntiAlias);
+	}
+
+	/**
+	 * 
+	 */
+	public float getPreviewAlpha()
+	{
+		return previewAlpha;
+	}
+
+	/**
+	 * 
+	 */
+	public void setPreviewAlpha(float value)
+	{
+		float oldValue = previewAlpha;
+		previewAlpha = value;
+
+		firePropertyChange("previewAlpha", oldValue, previewAlpha);
 	}
 
 	/**
@@ -2367,12 +2436,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param tripleBuffered the tripleBuffered to set
+	 * @param value
+	 *            the tripleBuffered to set
 	 */
-	public void setTripleBuffered(boolean tripleBuffered)
+	public void setTripleBuffered(boolean value)
 	{
-		boolean oldValue = this.tripleBuffered;
-		this.tripleBuffered = tripleBuffered;
+		boolean oldValue = tripleBuffered;
+		tripleBuffered = value;
 
 		firePropertyChange("tripleBuffered", oldValue, tripleBuffered);
 	}
@@ -2388,12 +2458,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Fires a property change event for <code>gridColor</code>.
 	 * 
-	 * @param gridColor the gridColor to set
+	 * @param value
+	 *            the gridColor to set
 	 */
-	public void setGridColor(Color gridColor)
+	public void setGridColor(Color value)
 	{
-		Color oldValue = this.gridColor;
-		this.gridColor = gridColor;
+		Color oldValue = gridColor;
+		gridColor = value;
 
 		firePropertyChange("gridColor", oldValue, gridColor);
 	}
@@ -2409,12 +2480,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Fires a property change event for <code>gridStyle</code>.
 	 * 
-	 * @param gridStyle the gridStyle to set
+	 * @param value
+	 *            the gridStyle to set
 	 */
-	public void setGridStyle(int gridStyle)
+	public void setGridStyle(int value)
 	{
-		int oldValue = this.gridStyle;
-		this.gridStyle = gridStyle;
+		int oldValue = gridStyle;
+		gridStyle = value;
 
 		firePropertyChange("gridStyle", oldValue, gridStyle);
 	}
@@ -2439,7 +2511,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Returns all cells which may be imported via datatransfer. 
+	 * Returns all cells which may be imported via datatransfer.
 	 */
 	public Object[] getImportableCells(Object[] cells)
 	{
@@ -2453,8 +2525,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Returns true if the given cell can be imported via datatransfer.
-	 * This returns importEnabled.
+	 * Returns true if the given cell can be imported via datatransfer. This
+	 * returns importEnabled.
 	 */
 	public boolean canImportCell(Object cell)
 	{
@@ -2470,12 +2542,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param value the exportEnabled to set
+	 * @param value
+	 *            the exportEnabled to set
 	 */
 	public void setExportEnabled(boolean value)
 	{
 		boolean oldValue = exportEnabled;
-		this.exportEnabled = value;
+		exportEnabled = value;
 
 		firePropertyChange("exportEnabled", oldValue, exportEnabled);
 	}
@@ -2511,12 +2584,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param foldingEnabled the foldingEnabled to set
+	 * @param value
+	 *            the foldingEnabled to set
 	 */
-	public void setFoldingEnabled(boolean foldingEnabled)
+	public void setFoldingEnabled(boolean value)
 	{
-		boolean oldValue = this.foldingEnabled;
-		this.foldingEnabled = foldingEnabled;
+		boolean oldValue = foldingEnabled;
+		foldingEnabled = value;
 
 		firePropertyChange("foldingEnabled", oldValue, foldingEnabled);
 	}
@@ -2546,7 +2620,14 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 */
 	public boolean isToggleEvent(MouseEvent event)
 	{
-		return (event != null) ? event.isControlDown() : false;
+		// NOTE: IsMetaDown always returns true for right-clicks on the Mac, so
+		// toggle selection for left mouse buttons requires CMD key to be pressed,
+		// but toggle for right mouse buttons requires CTRL to be pressed.
+		return (event != null) ? ((mxUtils.IS_MAC) ? ((SwingUtilities
+				.isLeftMouseButton(event) && event.isMetaDown()) || (SwingUtilities
+				.isRightMouseButton(event) && event.isControlDown()))
+				: event.isControlDown())
+				: false;
 	}
 
 	/**
@@ -2560,9 +2641,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Note: This is not used during drag and drop operations due to
-	 * limitations of the underlying API. To enable this for move
-	 * operations set dragEnabled to false.
+	 * Note: This is not used during drag and drop operations due to limitations
+	 * of the underlying API. To enable this for move operations set dragEnabled
+	 * to false.
 	 * 
 	 * @param event
 	 * @return Returns true if the given event is a panning event.
@@ -2574,9 +2655,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Note: This is not used during drag and drop operations due to
-	 * limitations of the underlying API. To enable this for move
-	 * operations set dragEnabled to false.
+	 * Note: This is not used during drag and drop operations due to limitations
+	 * of the underlying API. To enable this for move operations set dragEnabled
+	 * to false.
 	 * 
 	 * @param event
 	 * @return Returns true if the given event is constrained.
@@ -2587,9 +2668,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Note: This is not used during drag and drop operations due to
-	 * limitations of the underlying API. To enable this for move
-	 * operations set dragEnabled to false.
+	 * Note: This is not used during drag and drop operations due to limitations
+	 * of the underlying API. To enable this for move operations set dragEnabled
+	 * to false.
 	 * 
 	 * @param event
 	 * @return Returns true if the given event is constrained.
@@ -2617,14 +2698,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 			double scale = graph.getView().getScale();
 			mxPoint trans = graph.getView().getTranslate();
 
-			pt
-					.setX((graph.snap(pt.getX() / scale - trans.getX() + dx
-							/ scale) + trans.getX())
-							* scale - dx);
-			pt
-					.setY((graph.snap(pt.getY() / scale - trans.getY() + dy
-							/ scale) + trans.getY())
-							* scale - dy);
+			pt.setX((graph.snap(pt.getX() / scale - trans.getX() + dx / scale) + trans
+					.getX()) * scale - dx);
+			pt.setY((graph.snap(pt.getY() / scale - trans.getY() + dy / scale) + trans
+					.getY()) * scale - dy);
 		}
 
 		return pt;
@@ -2674,17 +2751,21 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 			mxGraphics2DCanvas canvas = createCanvas();
 			canvas.setGraphics((Graphics2D) g);
+			canvas.setScale(1 / pageScale);
 
 			view.revalidate();
 
-			Dimension pSize = graph.getGraphBounds().getRectangle().getSize();
+			mxRectangle graphBounds = graph.getGraphBounds();
+			Dimension pSize = new Dimension((int) Math.ceil(graphBounds.getX()
+					+ graphBounds.getWidth()) + 1, (int) Math.ceil(graphBounds
+					.getY() + graphBounds.getHeight()) + 1);
 
 			int w = (int) (printFormat.getImageableWidth());
 			int h = (int) (printFormat.getImageableHeight());
-			int cols = (int) Math.max(Math.ceil((double) (pSize.width - 5)
-					/ (double) w), 1);
-			int rows = (int) Math.max(Math.ceil((double) (pSize.height - 5)
-					/ (double) h), 1);
+			int cols = (int) Math.max(
+					Math.ceil((double) (pSize.width - 5) / (double) w), 1);
+			int rows = (int) Math.max(
+					Math.ceil((double) (pSize.height - 5) / (double) h), 1);
 
 			if (page < cols * rows)
 			{
@@ -2697,7 +2778,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 				g.setClip(dx, dy, (int) (dx + printFormat.getWidth()),
 						(int) (dy + printFormat.getHeight()));
 
-				graph.draw(canvas);
+				graph.drawGraph(canvas);
 
 				result = PAGE_EXISTS;
 			}
@@ -2733,18 +2814,21 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Hook for subclassers to replace the graphics canvas for rendering and
-	 * and printing. This must be overridden to return a custom canvas if there
-	 * are any custom shapes.
+	 * Hook for subclassers to replace the graphics canvas for rendering and and
+	 * printing. This must be overridden to return a custom canvas if there are
+	 * any custom shapes.
 	 */
 	public mxInteractiveCanvas createCanvas()
 	{
+		// NOTE: http://forum.jgraph.com/questions/3354/ reports that we should not
+		// pass image observer here as it will cause JVM to enter infinite loop.
 		return new mxInteractiveCanvas();
 	}
 
 	/**
 	 * 
-	 * @param state Cell state for which a handler should be created.
+	 * @param state
+	 *            Cell state for which a handler should be created.
 	 * @return Returns the handler to be used for the given cell state.
 	 */
 	public mxCellHandler createHandler(mxCellState state)
@@ -2777,7 +2861,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 	/**
 	 * Hook for subclassers to create the array of heavyweights for the given
-	 * state. 
+	 * state.
 	 */
 	public Component[] createComponents(mxCellState state)
 	{
@@ -2836,7 +2920,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	public void updateComponents()
 	{
 		Object root = graph.getModel().getRoot();
-		ConcurrentHashMap<Object, Component[]> result = updateComponents(root);
+		Hashtable<Object, Component[]> result = updateComponents(root);
 
 		// Components now contains the mappings which are no
 		// longer used, the result contains the new mappings
@@ -2859,9 +2943,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public void removeAllComponents(ConcurrentHashMap<Object, Component[]> components2)
+	public void removeAllComponents(Hashtable<Object, Component[]> map)
 	{
-		Iterator<Map.Entry<Object, Component[]>> it = components2.entrySet().iterator();
+		Iterator<Map.Entry<Object, Component[]>> it = map.entrySet().iterator();
 
 		while (it.hasNext())
 		{
@@ -2898,10 +2982,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * 
 	 */
-	public ConcurrentHashMap<Object, Component[]> updateComponents(Object cell)
+	public Hashtable<Object, Component[]> updateComponents(Object cell)
 	{
-		ConcurrentHashMap<Object, Component[]> result = new ConcurrentHashMap<Object, Component[]>();
-		Component[] c = (Component[]) components.remove(cell);
+		Hashtable<Object, Component[]> result = new Hashtable<Object, Component[]>();
+		Component[] c = components.remove(cell);
 		mxCellState state = getGraph().getView().getState(cell);
 
 		if (state != null)
@@ -2950,13 +3034,121 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	// Validation and overlays
 	//
 
+	/**
+	 * Validates the graph by validating each descendant of the given cell or
+	 * the root of the model. Context is an object that contains the validation
+	 * state for the complete validation run. The validation errors are attached
+	 * to their cells using <setWarning>. This function returns true if no
+	 * validation errors exist in the graph.
+	 */
+	public String validateGraph()
+	{
+		return validateGraph(graph.getModel().getRoot(),
+				new Hashtable<Object, Object>());
+	}
 
 	/**
-	 * Adds an overlay for the specified cell. This method fires an
-	 * addoverlay event and returns the new overlay.
+	 * Validates the graph by validating each descendant of the given cell or
+	 * the root of the model. Context is an object that contains the validation
+	 * state for the complete validation run. The validation errors are attached
+	 * to their cells using <setWarning>. This function returns true if no
+	 * validation errors exist in the graph.
 	 * 
-	 * @param cell Cell to add the overlay for.
-	 * @param overlay Overlay to be added for the cell.
+	 * @param cell
+	 *            Cell to start the validation recursion.
+	 * @param context
+	 *            Object that represents the global validation state.
+	 */
+	public String validateGraph(Object cell, Hashtable<Object, Object> context)
+	{
+		mxIGraphModel model = graph.getModel();
+		mxGraphView view = graph.getView();
+		boolean isValid = true;
+		int childCount = model.getChildCount(cell);
+
+		for (int i = 0; i < childCount; i++)
+		{
+			Object tmp = model.getChildAt(cell, i);
+			Hashtable<Object, Object> ctx = context;
+
+			if (graph.isValidRoot(tmp))
+			{
+				ctx = new Hashtable<Object, Object>();
+			}
+
+			String warn = validateGraph(tmp, ctx);
+
+			if (warn != null)
+			{
+				String html = warn.replaceAll("\n", "<br>");
+				int len = html.length();
+				setCellWarning(tmp, html.substring(0, Math.max(0, len - 4)));
+			}
+			else
+			{
+				setCellWarning(tmp, null);
+			}
+
+			isValid = isValid && warn == null;
+		}
+
+		StringBuffer warning = new StringBuffer();
+
+		// Adds error for invalid children if collapsed (children invisible)
+		if (graph.isCellCollapsed(cell) && !isValid)
+		{
+			warning.append(mxResources.get("containsValidationErrors",
+					"Contains Validation Errors") + "\n");
+		}
+
+		// Checks edges and cells using the defined multiplicities
+		if (model.isEdge(cell))
+		{
+			String tmp = graph.getEdgeValidationError(cell,
+					model.getTerminal(cell, true),
+					model.getTerminal(cell, false));
+
+			if (tmp != null)
+			{
+				warning.append(tmp);
+			}
+		}
+		else
+		{
+			String tmp = graph.getCellValidationError(cell);
+
+			if (tmp != null)
+			{
+				warning.append(tmp);
+			}
+		}
+
+		// Checks custom validation rules
+		String err = graph.validateCell(cell, context);
+
+		if (err != null)
+		{
+			warning.append(err);
+		}
+
+		// Updates the display with the warning icons before any potential
+		// alerts are displayed
+		if (model.getParent(cell) == null)
+		{
+			view.validate();
+		}
+
+		return (warning.length() > 0 || !isValid) ? warning.toString() : null;
+	}
+
+	/**
+	 * Adds an overlay for the specified cell. This method fires an addoverlay
+	 * event and returns the new overlay.
+	 * 
+	 * @param cell
+	 *            Cell to add the overlay for.
+	 * @param overlay
+	 *            Overlay to be added for the cell.
 	 */
 	public mxICellOverlay addCellOverlay(Object cell, mxICellOverlay overlay)
 	{
@@ -2989,23 +3181,26 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Returns the array of overlays for the given cell or null, if
-	 * no overlays are defined.
+	 * Returns the array of overlays for the given cell or null, if no overlays
+	 * are defined.
 	 * 
-	 * @param cell Cell whose overlays should be returned.
+	 * @param cell
+	 *            Cell whose overlays should be returned.
 	 */
 	public mxICellOverlay[] getCellOverlays(Object cell)
 	{
-		return (mxICellOverlay[]) overlays.get(cell);
+		return overlays.get(cell);
 	}
 
 	/**
-	 * Removes and returns the given overlay from the given cell. This
-	 * method fires a removeoverlay event. If no overlay is given, then all
-	 * overlays are removed using removeOverlays.
+	 * Removes and returns the given overlay from the given cell. This method
+	 * fires a remove overlay event. If no overlay is given, then all overlays
+	 * are removed using removeOverlays.
 	 * 
-	 * @param cell Cell whose overlay should be removed.
-	 * @param overlay Optional overlay to be removed.
+	 * @param cell
+	 *            Cell whose overlay should be removed.
+	 * @param overlay
+	 *            Optional overlay to be removed.
 	 */
 	public mxICellOverlay removeCellOverlay(Object cell, mxICellOverlay overlay)
 	{
@@ -3019,14 +3214,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 			if (arr != null)
 			{
-				List<mxICellOverlay> list = Arrays.asList(arr);
+				// TODO: Use arraycopy from/to same array to speed this up
+				List<mxICellOverlay> list = new ArrayList<mxICellOverlay>(
+						Arrays.asList(arr));
 
 				if (list.remove(overlay))
 				{
 					removeCellOverlayComponent(overlay, cell);
 				}
 
-				arr = (mxICellOverlay[]) list.toArray();
+				arr = list.toArray(new mxICellOverlay[list.size()]);
 				overlays.put(cell, arr);
 			}
 		}
@@ -3035,15 +3232,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Removes all overlays from the given cell. This method
-	 * fires a removeoverlay event for each removed overlay and returns
-	 * the array of overlays that was removed from the cell.
+	 * Removes all overlays from the given cell. This method fires a
+	 * removeoverlay event for each removed overlay and returns the array of
+	 * overlays that was removed from the cell.
 	 * 
-	 * @param cell Cell whose overlays should be removed.
+	 * @param cell
+	 *            Cell whose overlays should be removed.
 	 */
 	public mxICellOverlay[] removeCellOverlays(Object cell)
 	{
-		mxICellOverlay[] ovls = (mxICellOverlay[]) overlays.remove(cell);
+		mxICellOverlay[] ovls = overlays.remove(cell);
 
 		if (ovls != null)
 		{
@@ -3121,11 +3319,12 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * Removes all overlays in the graph for the given cell and all its
 	 * descendants. If no cell is specified then all overlays are removed from
-	 * the graph. This implementation uses removeOverlays to remove the
-	 * overlays from the individual cells.
+	 * the graph. This implementation uses removeOverlays to remove the overlays
+	 * from the individual cells.
 	 * 
-	 * @param cell Optional cell that represents the root of the subtree to
-	 * remove the overlays from. Default is the root in the model.
+	 * @param cell
+	 *            Optional cell that represents the root of the subtree to
+	 *            remove the overlays from. Default is the root in the model.
 	 */
 	public void clearCellOverlays(Object cell)
 	{
@@ -3153,8 +3352,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 * warningImage and returns the new overlay. If the warning is null or a
 	 * zero length string, then all overlays are removed from the cell instead.
 	 * 
-	 * @param cell Cell whose warning should be set.
-	 * @param warning String that represents the warning to be displayed.
+	 * @param cell
+	 *            Cell whose warning should be set.
+	 * @param warning
+	 *            String that represents the warning to be displayed.
 	 */
 	public mxICellOverlay setCellWarning(Object cell, String warning)
 	{
@@ -3166,10 +3367,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 * warningImage and returns the new overlay. If the warning is null or a
 	 * zero length string, then all overlays are removed from the cell instead.
 	 * 
-	 * @param cell Cell whose warning should be set.
-	 * @param warning String that represents the warning to be displayed.
-	 * @param icon Optional image to be used for the overlay. Default is
-	 * warningImageBasename.
+	 * @param cell
+	 *            Cell whose warning should be set.
+	 * @param warning
+	 *            String that represents the warning to be displayed.
+	 * @param icon
+	 *            Optional image to be used for the overlay. Default is
+	 *            warningImageBasename.
 	 */
 	public mxICellOverlay setCellWarning(Object cell, String warning,
 			ImageIcon icon)
@@ -3182,12 +3386,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 * warningImage and returns the new overlay. If the warning is null or a
 	 * zero length string, then all overlays are removed from the cell instead.
 	 * 
-	 * @param cell Cell whose warning should be set.
-	 * @param warning String that represents the warning to be displayed.
-	 * @param icon Optional image to be used for the overlay. Default is
-	 * warningImageBasename.
-	 * @param select Optional boolean indicating if a click on the overlay
-	 * should select the corresponding cell. Default is false.
+	 * @param cell
+	 *            Cell whose warning should be set.
+	 * @param warning
+	 *            String that represents the warning to be displayed.
+	 * @param icon
+	 *            Optional image to be used for the overlay. Default is
+	 *            warningImageBasename.
+	 * @param select
+	 *            Optional boolean indicating if a click on the overlay should
+	 *            select the corresponding cell. Default is false.
 	 */
 	public mxICellOverlay setCellWarning(final Object cell, String warning,
 			ImageIcon icon, boolean select)
@@ -3235,13 +3443,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	 * cell still exists in the model. The entries are removed from the global
 	 * hashtable so that the remaining entries reflect those whose cell have
 	 * been removed from the model. If no state is available for a given cell
-	 * then its overlays are temporarly removed from the rendering control,
-	 * but kept in the result.
+	 * then its overlays are temporarly removed from the rendering control, but
+	 * kept in the result.
 	 */
 	public Hashtable<Object, mxICellOverlay[]> updateCellOverlays(Object cell)
 	{
 		Hashtable<Object, mxICellOverlay[]> result = new Hashtable<Object, mxICellOverlay[]>();
-		mxICellOverlay[] c = (mxICellOverlay[]) overlays.remove(cell);
+		mxICellOverlay[] c = overlays.remove(cell);
 		mxCellState state = getGraph().getView().getState(cell);
 
 		if (c != null)
@@ -3314,25 +3522,47 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		if (isPageVisible())
 		{
 			// Draws the background behind the page
-			g.setColor(getPageBackgroundColor());
-			mxUtils.fillClippedRect(g, 0, 0, getGraphControl().getWidth(),
-					getGraphControl().getHeight());
+			Color c = getPageBackgroundColor();
+			
+			if (c != null)
+			{
+				g.setColor(c);
+				mxUtils.fillClippedRect(g, 0, 0, getGraphControl().getWidth(),
+						getGraphControl().getHeight());
+			}
 
 			// Draws the page drop shadow
-			g.setColor(getPageShadowColor());
-			mxUtils.fillClippedRect(g, x0 + w, y0 + 6, 6, h - 6);
-			mxUtils.fillClippedRect(g, x0 + 8, y0 + h, w - 2, 6);
+			c = getPageShadowColor();
+			
+			if (c != null)
+			{
+				g.setColor(c);
+				mxUtils.fillClippedRect(g, x0 + w, y0 + 6, 6, h - 6);
+				mxUtils.fillClippedRect(g, x0 + 8, y0 + h, w - 2, 6);
+			}
 
 			// Draws the page
-			g.setColor(getBackground());
+			Color bg = getBackground();
+
+			if (getViewport().isOpaque())
+			{
+				bg = getViewport().getBackground();
+			}
+
+			g.setColor(bg);
 			mxUtils.fillClippedRect(g, x0 + 1, y0 + 1, w, h);
 
 			// Draws the page border
-			g.setColor(getPageBorderColor());
-			g.drawRect(x0, y0, w, h);
+			c = getPageBorderColor();
+			
+			if (c != null)
+			{
+				g.setColor(c);
+				g.drawRect(x0, y0, w, h);
+			}
 		}
 
-		if (isPageBreakVisible()
+		if (isPageBreaksVisible()
 				&& (horizontalPageCount > 1 || verticalPageCount > 1))
 		{
 			// Draws the pagebreaks
@@ -3342,7 +3572,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 			g2.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT,
 					BasicStroke.JOIN_MITER, 10.0f, new float[] { 1, 2 }, 0));
-			g2.setColor(Color.darkGray);
+			g2.setColor(pageBreakColor);
 
 			for (int i = 1; i <= horizontalPageCount - 1; i++)
 			{
@@ -3375,9 +3605,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 			g.drawImage(backgroundImage.getImage(),
 					(int) (translate.getX() * scale),
-					(int) (translate.getY() * scale), (int) (backgroundImage
-							.getIconWidth() * scale), (int) (backgroundImage
-							.getIconHeight() * scale), this);
+					(int) (translate.getY() * scale),
+					(int) (backgroundImage.getIconWidth() * scale),
+					(int) (backgroundImage.getIconHeight() * scale), this);
 		}
 	}
 
@@ -3444,8 +3674,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 					{
 						for (double y = ys; y <= ye; y += stepping)
 						{
-							// FIXME: Workaround for rounding errors when adding stepping to
-							// xs or ys multiple times (leads to double grid lines when zoom
+							// FIXME: Workaround for rounding errors when adding
+							// stepping to
+							// xs or ys multiple times (leads to double grid lines
+							// when zoom
 							// is set to eg. 121%)
 							x = Math.round((x - tx) / stepping) * stepping + tx;
 							y = Math.round((y - ty) / stepping) * stepping + ty;
@@ -3471,8 +3703,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 					for (double x = xs; x <= xe; x += stepping)
 					{
-						// FIXME: Workaround for rounding errors when adding stepping to
-						// xs or ys multiple times (leads to double grid lines when zoom
+						// FIXME: Workaround for rounding errors when adding
+						// stepping to
+						// xs or ys multiple times (leads to double grid lines when
+						// zoom
 						// is set to eg. 121%)
 						x = Math.round((x - tx) / stepping) * stepping + tx;
 
@@ -3483,8 +3717,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 					for (double y = ys; y <= ye; y += stepping)
 					{
 
-						// FIXME: Workaround for rounding errors when adding stepping to
-						// xs or ys multiple times (leads to double grid lines when zoom
+						// FIXME: Workaround for rounding errors when adding
+						// stepping to
+						// xs or ys multiple times (leads to double grid lines when
+						// zoom
 						// is set to eg. 121%)
 						y = Math.round((y - ty) / stepping) * stepping + ty;
 
@@ -3528,8 +3764,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 						g2.setStroke(strokes[((int) (x / stepping))
 								% strokes.length]);
 
-						// FIXME: Workaround for rounding errors when adding stepping to
-						// xs or ys multiple times (leads to double grid lines when zoom
+						// FIXME: Workaround for rounding errors when adding
+						// stepping to
+						// xs or ys multiple times (leads to double grid lines when
+						// zoom
 						// is set to eg. 121%)
 						double xx = Math.round((x - tx) / stepping) * stepping
 								+ tx;
@@ -3557,8 +3795,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 						g2.setStroke(strokes[((int) (y / stepping))
 								% strokes.length]);
 
-						// FIXME: Workaround for rounding errors when adding stepping to
-						// xs or ys multiple times (leads to double grid lines when zoom
+						// FIXME: Workaround for rounding errors when adding
+						// stepping to
+						// xs or ys multiple times (leads to double grid lines when
+						// zoom
 						// is set to eg. 121%)
 						double yy = Math.round((y - ty) / stepping) * stepping
 								+ ty;
@@ -3578,8 +3818,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 						for (double y = ys; y <= ye; y += stepping)
 						{
-							// FIXME: Workaround for rounding errors when adding stepping to
-							// xs or ys multiple times (leads to double grid lines when zoom
+							// FIXME: Workaround for rounding errors when adding
+							// stepping to
+							// xs or ys multiple times (leads to double grid lines
+							// when zoom
 							// is set to eg. 121%)
 							x = Math.round((x - tx) / stepping) * stepping + tx;
 							y = Math.round((y - ty) / stepping) * stepping + ty;
@@ -3613,16 +3855,15 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Checks if the triple buffer exists and creates a new one if
-	 * it does not. Also compares the size of the buffer with the
-	 * size of the graph and drops the buffer if it has a
-	 * different size.
+	 * Checks if the triple buffer exists and creates a new one if it does not.
+	 * Also compares the size of the buffer with the size of the graph and drops
+	 * the buffer if it has a different size.
 	 */
 	public void checkTripleBuffer()
 	{
 		mxRectangle bounds = graph.getGraphBounds();
-		int width = (int) (bounds.getWidth() + 2);
-		int height = (int) (bounds.getHeight() + 2);
+		int width = (int) Math.ceil(bounds.getX() + bounds.getWidth() + 2);
+		int height = (int) Math.ceil(bounds.getY() + bounds.getHeight() + 2);
 
 		if (tripleBuffer != null)
 		{
@@ -3641,8 +3882,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * Creates the tripleBufferGraphics and tripleBuffer for the given
-	 * dimension and draws the complete graph onto the triplebuffer.
+	 * Creates the tripleBufferGraphics and tripleBuffer for the given dimension
+	 * and draws the complete graph onto the triplebuffer.
 	 * 
 	 * @param width
 	 * @param height
@@ -3653,9 +3894,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		{
 			tripleBuffer = mxUtils.createBufferedImage(width, height, null);
 			tripleBufferGraphics = tripleBuffer.createGraphics();
-			mxUtils
-					.setAntiAlias(tripleBufferGraphics, antiAlias,
-							textAntiAlias);
+			mxUtils.setAntiAlias(tripleBufferGraphics, antiAlias, textAntiAlias);
 
 			// Repaints the complete buffer
 			repaintTripleBuffer(null);
@@ -3691,45 +3930,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		{
 			if (dirty == null)
 			{
-				dirty = new Rectangle(tripleBuffer.getWidth(), tripleBuffer
-						.getHeight());
+				dirty = new Rectangle(tripleBuffer.getWidth(),
+						tripleBuffer.getHeight());
 			}
 
 			// Clears and repaints the dirty rectangle using the
 			// graphics canvas as a renderer
 			mxUtils.clearRect(tripleBufferGraphics, dirty, null);
 			tripleBufferGraphics.setClip(dirty);
-			paintGraph(tripleBufferGraphics, true);
+			graphControl.drawGraph(tripleBufferGraphics, true);
 			tripleBufferGraphics.setClip(null);
-		}
-	}
-
-	/**
-	 * 
-	 */
-	public void paintGraph(Graphics2D g, boolean drawLabels)
-	{
-		Graphics2D previousGraphics = canvas.getGraphics();
-		boolean previousDrawLabels = canvas.isDrawLabels();
-		Point previousTranslate = canvas.getTranslate();
-		double previousScale = canvas.getScale();
-
-		try
-		{
-			canvas.setScale(graph.getView().getScale());
-			canvas.setDrawLabels(drawLabels);
-			canvas.setTranslate(0, 0);
-			canvas.setGraphics(g);
-
-			// Draws the graph using the graphics canvas
-			graphControl.draw(canvas);
-		}
-		finally
-		{
-			canvas.setScale(previousScale);
-			canvas.setTranslate(previousTranslate.x, previousTranslate.y);
-			canvas.setDrawLabels(previousDrawLabels);
-			canvas.setGraphics(previousGraphics);
 		}
 	}
 
@@ -3758,7 +3968,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	/**
 	 * @param eventName
 	 * @param listener
-	 * @see com.mxgraph.util.mxEventSource#addListener(java.lang.String, com.mxgraph.util.mxEventSource.mxIEventListener)
+	 * @see com.mxgraph.util.mxEventSource#addListener(java.lang.String,
+	 *      com.mxgraph.util.mxEventSource.mxIEventListener)
 	 */
 	public void addListener(String eventName, mxIEventListener listener)
 	{
@@ -3766,7 +3977,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param listener Listener instance.
+	 * @param listener
+	 *            Listener instance.
 	 */
 	public void removeListener(mxIEventListener listener)
 	{
@@ -3774,20 +3986,20 @@ public class mxGraphComponent extends JScrollPane implements Printable
 	}
 
 	/**
-	 * @param eventName Name of the event.
-	 * @param listener Listener instance.
+	 * @param eventName
+	 *            Name of the event.
+	 * @param listener
+	 *            Listener instance.
 	 */
 	public void removeListener(mxIEventListener listener, String eventName)
 	{
 		eventSource.removeListener(listener, eventName);
 	}
 
-	private boolean repaintEnabled=true;
-
 	/**
 	 * 
 	 * @author gaudenz
-	 *
+	 * 
 	 */
 	public class mxGraphControl extends JComponent
 	{
@@ -3798,6 +4010,47 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		private static final long serialVersionUID = -8916603170766739124L;
 
 		/**
+		 * Specifies a translation for painting. This should only be used during
+		 * mouse drags and must be reset after any interactive repaints. Default
+		 * is (0,0). This should not be null.
+		 */
+		protected Point translate = new Point(0, 0);
+
+		/**
+		 * 
+		 */
+		public mxGraphControl()
+		{
+			addMouseListener(new MouseAdapter()
+			{
+				public void mouseReleased(MouseEvent e)
+				{
+					if (translate.x != 0 || translate.y != 0)
+					{
+						translate = new Point(0, 0);
+						repaint();
+					}
+				}
+			});
+		}
+
+		/**
+		 * Returns the translate.
+		 */
+		public Point getTranslate()
+		{
+			return translate;
+		}
+
+		/**
+		 * Sets the translate.
+		 */
+		public void setTranslate(Point value)
+		{
+			translate = value;
+		}
+
+		/**
 		 * 
 		 */
 		public mxGraphComponent getGraphContainer()
@@ -3806,22 +4059,104 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		}
 
 		/**
+		 * Overrides parent method to add extend flag for making the control
+		 * larger during previews.
+		 */
+		public void scrollRectToVisible(Rectangle aRect, boolean extend)
+		{
+			super.scrollRectToVisible(aRect);
+
+			if (extend)
+			{
+				extendComponent(aRect);
+			}
+		}
+
+		/**
+		 * Implements extension of the component in all directions. For
+		 * extension below the origin (into negative space) the translate will
+		 * temporaly be used and reset with the next mouse released event.
+		 */
+		protected void extendComponent(Rectangle rect)
+		{
+			int right = rect.x + rect.width;
+			int bottom = rect.y + rect.height;
+
+			Dimension d = new Dimension(getPreferredSize());
+			Dimension sp = getScaledPreferredSizeForGraph();
+			mxRectangle min = graph.getMinimumGraphSize();
+			double scale = graph.getView().getScale();
+			boolean update = false;
+
+			if (rect.x < 0)
+			{
+				translate.x = Math.max(translate.x, Math.max(0, -rect.x));
+				d.width = sp.width;
+
+				if (min != null)
+				{
+					d.width = (int) Math.max(d.width,
+							Math.round(min.getWidth() * scale));
+				}
+
+				d.width += translate.x;
+				update = true;
+			}
+			else if (right > getWidth())
+			{
+				d.width = Math.max(right, getWidth());
+				update = true;
+			}
+
+			if (rect.y < 0)
+			{
+				translate.y = Math.max(translate.y, Math.max(0, -rect.y));
+				d.height = sp.height;
+
+				if (min != null)
+				{
+					d.height = (int) Math.max(d.height,
+							Math.round(min.getHeight() * scale));
+				}
+
+				d.height += translate.y;
+				update = true;
+			}
+			else if (bottom > getHeight())
+			{
+				d.height = Math.max(bottom, getHeight());
+				update = true;
+			}
+
+			if (update)
+			{
+				setPreferredSize(d);
+				setMinimumSize(d);
+				revalidate();
+			}
+		}
+
+		/**
 		 * 
 		 */
 		public String getToolTipText(MouseEvent e)
 		{
-			String tip = null;
-			Object cell = getCellAt(e.getX(), e.getY());
+			String tip = getSelectionCellsHandler().getToolTipText(e);
 
-			if (cell != null)
+			if (tip == null)
 			{
-				if (hitFoldingIcon(cell, e.getX(), e.getY()))
+				Object cell = getCellAt(e.getX(), e.getY());
+
+				if (cell != null)
 				{
-					tip = mxResources.get("collapse-expand");
-				}
-				else
-				{
-					tip = graph.getToolTipForCell(cell);
+					if (hitFoldingIcon(cell, e.getX(), e.getY()))
+					{
+						tip = mxResources.get("collapse-expand");
+					}
+					else
+					{
+						tip = graph.getToolTipForCell(cell);
+					}
 				}
 			}
 
@@ -3834,8 +4169,8 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		}
 
 		/**
-		 * Updates the preferred size for the given scale if the page size should be
-		 * preferred or the page is visible.
+		 * Updates the preferred size for the given scale if the page size
+		 * should be preferred or the page is visible.
 		 */
 		public void updatePreferredSize()
 		{
@@ -3864,10 +4199,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 			if (min != null)
 			{
-				d.width = (int) Math.max(d.width, Math.round(min.getWidth()
-						* scale));
-				d.height = (int) Math.max(d.height, Math.round(min.getHeight()
-						* scale));
+				d.width = (int) Math.max(d.width,
+						Math.round(min.getWidth() * scale));
+				d.height = (int) Math.max(d.height,
+						Math.round(min.getHeight() * scale));
 			}
 
 			if (!getPreferredSize().equals(d))
@@ -3883,11 +4218,13 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		 */
 		public void paint(Graphics g)
 		{
+			g.translate(translate.x, translate.y);
 			eventSource.fireEvent(new mxEventObject(mxEvent.BEFORE_PAINT, "g",
 					g));
 			super.paint(g);
 			eventSource
 					.fireEvent(new mxEventObject(mxEvent.AFTER_PAINT, "g", g));
+			g.translate(-translate.x, -translate.y);
 		}
 
 		/**
@@ -3895,98 +4232,156 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		 */
 		public void paintComponent(Graphics g)
 		{
-			if (repaintEnabled) {
-				super.paintComponent(g);
+			super.paintComponent(g);
 
-				// Draws the background
-				paintBackground(g);
+			// Draws the background
+			paintBackground(g);
 
-				// Creates or destroys the triple buffer as needed
-				if (tripleBuffered)
+			// Creates or destroys the triple buffer as needed
+			if (tripleBuffered)
+			{
+				checkTripleBuffer();
+			}
+			else if (tripleBuffer != null)
+			{
+				destroyTripleBuffer();
+			}
+
+			// Paints the buffer in the canvas onto the dirty region
+			if (tripleBuffer != null)
+			{
+				mxUtils.drawImageClip(g, tripleBuffer, this);
+			}
+
+			// Paints the graph directly onto the graphics
+			else
+			{
+				Graphics2D g2 = (Graphics2D) g;
+				RenderingHints tmp = g2.getRenderingHints();
+
+				// Sets the graphics in the canvas
+				try
 				{
-					checkTripleBuffer();
+					mxUtils.setAntiAlias(g2, antiAlias, textAntiAlias);
+					drawGraph(g2, true);
 				}
-				else if (tripleBuffer != null)
+				finally
 				{
-					destroyTripleBuffer();
+					// Restores the graphics state
+					g2.setRenderingHints(tmp);
 				}
+			}
 
-				// Paints the buffer in the canvas onto the dirty region
-				if (tripleBuffer != null)
-				{
-					mxUtils.drawImageClip(g, tripleBuffer, this);
-				}
+			eventSource.fireEvent(new mxEventObject(mxEvent.PAINT, "g", g));
+		}
 
-				// Paints the graph directly onto the graphics
-				else
-				{
-					Graphics2D g2 = (Graphics2D) g;
-					RenderingHints tmp = g2.getRenderingHints();
+		/**
+		 * 
+		 */
+		public void drawGraph(Graphics2D g, boolean drawLabels)
+		{
+			Graphics2D previousGraphics = canvas.getGraphics();
+			boolean previousDrawLabels = canvas.isDrawLabels();
+			Point previousTranslate = canvas.getTranslate();
+			double previousScale = canvas.getScale();
 
-					// Sets the graphics in the canvas
-					try
-					{
-						mxUtils.setAntiAlias(g2, antiAlias, textAntiAlias);
-						paintGraph(g2, true);
-					}
-					finally
-					{
-						// Restores the graphics state
-						g2.setRenderingHints(tmp);
-					}
-				}
+			try
+			{
+				canvas.setScale(graph.getView().getScale());
+				canvas.setDrawLabels(drawLabels);
+				canvas.setTranslate(0, 0);
+				canvas.setGraphics(g);
+
+				// Draws the graph using the graphics canvas
+				drawFromRootCell();
+			}
+			finally
+			{
+				canvas.setScale(previousScale);
+				canvas.setTranslate(previousTranslate.x, previousTranslate.y);
+				canvas.setDrawLabels(previousDrawLabels);
+				canvas.setGraphics(previousGraphics);
 			}
 		}
 
 		/**
-		 * Draws the graph onto the given canvas.
-		 * 
-		 * @param canvas Canvas onto which the graph should be drawn.
+		 * Hook to draw the root cell into the canvas.
 		 */
-		public void draw(mxICanvas canvas)
+		protected void drawFromRootCell()
 		{
 			drawCell(canvas, graph.getModel().getRoot());
 		}
 
 		/**
-		 * Returns the label of the cell in the graph if the cell is not
-		 * being edited. This can be overridden to modify labels in the
-		 * graph display.
+		 * 
 		 */
-		protected String getDisplayLabelForCell(Object cell)
+		protected boolean hitClip(mxGraphics2DCanvas canvas, mxCellState state)
 		{
-			return (cell != cellEditor.getEditingCell()) ? graph.getLabel(cell)
-					: null;
+			Rectangle rect = getExtendedCellBounds(state);
+
+			return (rect == null || canvas.getGraphics().hitClip(rect.x,
+					rect.y, rect.width, rect.height));
 		}
 
 		/**
-		 * Returns true if the given cell is not the current root or the
-		 * root in the model. This can be overridden to not render certain
-		 * cells in the graph display.
+		 * @param state the cached state of the cell whose extended bounds are to be calculated
+		 * @return the bounds of the cell, including the label and shadow and allowing for rotation
 		 */
-		protected boolean isCellDisplayable(Object cell)
+		protected Rectangle getExtendedCellBounds(mxCellState state)
 		{
-			return cell != graph.getView().getCurrentRoot()
-					&& cell != graph.getModel().getRoot();
+			Rectangle rect = null;
+
+			// Takes rotation into account
+			double rotation = mxUtils.getDouble(state.getStyle(),
+					mxConstants.STYLE_ROTATION);
+			mxRectangle tmp = mxUtils.getBoundingBox(new mxRectangle(state),
+					rotation);
+
+			// Adds scaled stroke width
+			int border = (int) Math
+					.ceil(mxUtils.getDouble(state.getStyle(),
+							mxConstants.STYLE_STROKEWIDTH)
+							* graph.getView().getScale()) + 1;
+			tmp.grow(border);
+
+			if (mxUtils.isTrue(state.getStyle(), mxConstants.STYLE_SHADOW))
+			{
+				tmp.setWidth(tmp.getWidth() + mxConstants.SHADOW_OFFSETX);
+				tmp.setHeight(tmp.getHeight() + mxConstants.SHADOW_OFFSETX);
+			}
+
+			// Adds the bounds of the label
+			if (state.getLabelBounds() != null)
+			{
+				tmp.add(state.getLabelBounds());
+			}
+
+			rect = tmp.getRectangle();
+			return rect;
 		}
 
 		/**
 		 * Draws the given cell onto the specified canvas. This is a modified
 		 * version of mxGraph.drawCell which paints the label only if the
-		 * corresponding cell is not being edited and invokes the cellDrawn
-		 * hook after all descendants have been painted.
+		 * corresponding cell is not being edited and invokes the cellDrawn hook
+		 * after all descendants have been painted.
 		 * 
-		 * @param canvas Canvas onto which the cell should be drawn.
-		 * @param cell Cell that should be drawn onto the canvas.
+		 * @param canvas
+		 *            Canvas onto which the cell should be drawn.
+		 * @param cell
+		 *            Cell that should be drawn onto the canvas.
 		 */
 		public void drawCell(mxICanvas canvas, Object cell)
 		{
 			mxCellState state = graph.getView().getState(cell);
 
-			if (isCellDisplayable(cell))
+			if (state != null
+					&& isCellDisplayable(state.getCell())
+					&& (!(canvas instanceof mxGraphics2DCanvas) || hitClip(
+							(mxGraphics2DCanvas) canvas, state)))
 			{
-				String label = getDisplayLabelForCell(cell);
-				graph.drawStateWithLabel(canvas, state, label);
+				graph.drawState(canvas, state,
+						cell != cellEditor.getEditingCell());
 			}
 
 			// Handles special ordering for edges (all in foreground
@@ -4038,7 +4433,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 		 */
 		protected void cellDrawn(mxICanvas canvas, mxCellState state)
 		{
-			if (canvas instanceof mxGraphics2DCanvas)
+			if (isFoldingEnabled() && canvas instanceof mxGraphics2DCanvas)
 			{
 				mxIGraphModel model = graph.getModel();
 				mxGraphics2DCanvas g2c = (mxGraphics2DCanvas) canvas;
@@ -4047,8 +4442,7 @@ public class mxGraphComponent extends JScrollPane implements Printable
 				// Draws the collapse/expand icons
 				boolean isEdge = model.isEdge(state.getCell());
 
-				if (isFoldingEnabled()
-						&& state.getCell() != graph.getCurrentRoot()
+				if (state.getCell() != graph.getCurrentRoot()
 						&& (model.isVertex(state.getCell()) || isEdge))
 				{
 					ImageIcon icon = getFoldingIcon(state);
@@ -4063,25 +4457,17 @@ public class mxGraphComponent extends JScrollPane implements Printable
 			}
 		}
 
-	}
+		/**
+		 * Returns true if the given cell is not the current root or the root in
+		 * the model. This can be overridden to not render certain cells in the
+		 * graph display.
+		 */
+		protected boolean isCellDisplayable(Object cell)
+		{
+			return cell != graph.getView().getCurrentRoot()
+					&& cell != graph.getModel().getRoot();
+		}
 
-	public Point mouseCoordToGraphCoord(Point mouse) {
-		mxGraphView view = graph.getView();
-		double scale = view.getScale();
-		mxPoint trans = view.getTranslate();
-		int dx = getHorizontalScrollBar().getValue();
-		int dy = getVerticalScrollBar().getValue();
-		return new Point((int)Math.round(((dx+mouse.x)/scale)-trans.getX()),(int)Math.round(((dy+mouse.y)/scale)-trans.getY()));
-	}
-	public Point mouseCoordToGraphMouseCoord(Point mouse) {
-		int dx = getHorizontalScrollBar().getValue();
-		int dy = getVerticalScrollBar().getValue();
-		return new Point(dx+mouse.x,dy+mouse.y);
-	}
-	public Point unscaledGraphCoordinates(Point p) {
-		mxGraphView view = graph.getView();
-		double scale = view.getScale();
-		return new Point((int)Math.round(p.x/scale), (int)Math.round(p.y/scale));
 	}
 
 	/**
@@ -4106,7 +4492,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseListener#mouseClicked(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseListener#mouseClicked(java.awt.event.MouseEvent)
 		 */
 		public void mouseClicked(MouseEvent e)
 		{
@@ -4117,7 +4505,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseListener#mouseEntered(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseListener#mouseEntered(java.awt.event.MouseEvent)
 		 */
 		public void mouseEntered(MouseEvent e)
 		{
@@ -4127,7 +4517,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseListener#mouseExited(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseListener#mouseExited(java.awt.event.MouseEvent)
 		 */
 		public void mouseExited(MouseEvent e)
 		{
@@ -4136,7 +4528,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseListener#mousePressed(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseListener#mousePressed(java.awt.event.MouseEvent)
 		 */
 		public void mousePressed(MouseEvent e)
 		{
@@ -4145,7 +4539,9 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseListener#mouseReleased(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseListener#mouseReleased(java.awt.event.MouseEvent)
 		 */
 		public void mouseReleased(MouseEvent e)
 		{
@@ -4154,7 +4550,10 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseMotionListener#mouseDragged(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseMotionListener#mouseDragged(java.awt.event.MouseEvent
+		 * )
 		 */
 		public void mouseDragged(MouseEvent e)
 		{
@@ -4163,19 +4562,16 @@ public class mxGraphComponent extends JScrollPane implements Printable
 
 		/*
 		 * (non-Javadoc)
-		 * @see java.awt.event.MouseMotionListener#mouseMoved(java.awt.event.MouseEvent)
+		 * 
+		 * @see
+		 * java.awt.event.MouseMotionListener#mouseMoved(java.awt.event.MouseEvent
+		 * )
 		 */
 		public void mouseMoved(MouseEvent e)
 		{
 			mouseClicked(e);
 		}
 
-	}
-
-	public Rectangle getScreenArea() {
-		Point origin = getLocationOnScreen();
-		Dimension dimension = getSize();
-		return new Rectangle(origin.x, origin.y, dimension.width, dimension.height);
 	}
 
 }

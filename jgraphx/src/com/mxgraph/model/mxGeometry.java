@@ -1,5 +1,4 @@
 /**
- * $Id: mxGeometry.java,v 1.30 2009/11/24 12:00:29 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.model;
@@ -307,7 +306,7 @@ public class mxGeometry extends mxRectangle
 
 			for (int i = 0; i < count; i++)
 			{
-				mxPoint pt = (mxPoint) points.get(i);
+				mxPoint pt = points.get(i);
 
 				pt.setX(pt.getX() + dx);
 				pt.setY(pt.getY() + dy);

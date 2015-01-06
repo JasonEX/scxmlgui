@@ -1,5 +1,4 @@
 /**
- * $Id: mxGraphViewReader.java,v 1.26 2010/01/13 10:43:46 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.reader;
@@ -17,6 +16,7 @@ import com.mxgraph.canvas.mxICanvas;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.view.mxCellState;
 
 /**
  * An abstract converter that renders display XML data onto a canvas.
@@ -85,12 +85,12 @@ public abstract class mxGraphViewReader extends DefaultHandler
 
 		for (int i = 0; i < atts.getLength(); i++)
 		{
-			String name = atts.getLocalName(i);
+			String name = atts.getQName(i);
 
 			// Workaround for possible null name
-			if (name == null)
+			if (name == null || name.length() == 0)
 			{
-				name = atts.getQName(i);
+				name = atts.getLocalName(i);
 			}
 
 			attrs.put(name, atts.getValue(i));
@@ -107,7 +107,7 @@ public abstract class mxGraphViewReader extends DefaultHandler
 	 */
 	public void parseElement(String tagName, Map<String, Object> attrs)
 	{
-		if (canvas == null && tagName.equalsIgnoreCase("GRAPH"))
+		if (canvas == null && tagName.equalsIgnoreCase("graph"))
 		{
 			scale = mxUtils.getDouble(attrs, "scale", 1);
 			canvas = createCanvas(attrs);
@@ -119,89 +119,62 @@ public abstract class mxGraphViewReader extends DefaultHandler
 		}
 		else if (canvas != null)
 		{
-			boolean drawLabel = false;
+			boolean edge = tagName.equalsIgnoreCase("edge");
+			boolean group = tagName.equalsIgnoreCase("group");
+			boolean vertex = tagName.equalsIgnoreCase("vertex");
 
-			if (tagName.equalsIgnoreCase("VERTEX")
-					|| tagName.equalsIgnoreCase("GROUP"))
+			if ((edge && attrs.containsKey("points"))
+					|| ((vertex || group) && attrs.containsKey("x")
+							&& attrs.containsKey("y")
+							&& attrs.containsKey("width") && attrs
+							.containsKey("height")))
 			{
-				drawVertex(attrs);
-				drawLabel = true;
-			}
-			else if (tagName.equalsIgnoreCase("EDGE"))
-			{
-				drawEdge(attrs);
-				drawLabel = true;
-			}
+				mxCellState state = new mxCellState(null, null, attrs);
 
-			if (drawLabel)
-			{
-				drawLabel(tagName.equalsIgnoreCase("EDGE"), attrs);
+				String label = parseState(state, edge);
+				canvas.drawCell(state);
+				canvas.drawLabel(label, state, isHtmlLabels());
 			}
 		}
 	}
 
 	/**
-	 * Draws the specified vertex using the canvas.
-	 * 
-	 * @param attrs Specifies the attributes of the vertex.
+	 * Parses the bounds, absolute points and label information from the style
+	 * of the state into its respective fields and returns the label of the
+	 * cell.
 	 */
-	public void drawVertex(Map<String, Object> attrs)
+	public String parseState(mxCellState state, boolean edge)
 	{
-		int width = mxUtils.getInt(attrs, "width");
-		int height = mxUtils.getInt(attrs, "height");
+		Map<String, Object> style = state.getStyle();
 
-		if (width > 0 && height > 0)
-		{
-			int x = (int) Math.round(mxUtils.getDouble(attrs, "x"));
-			int y = (int) Math.round(mxUtils.getDouble(attrs, "y"));
+		// Parses the bounds
+		state.setX(mxUtils.getDouble(style, "x"));
+		state.setY(mxUtils.getDouble(style, "y"));
+		state.setWidth(mxUtils.getDouble(style, "width"));
+		state.setHeight(mxUtils.getDouble(style, "height"));
 
-			canvas.drawVertex(x, y, width, height, attrs);
-		}
-	}
-
-	/**
-	 * Draws the specified edge using the canvas.
-	 * 
-	 * @param attrs Specifies the attribute of the edge.
-	 */
-	public void drawEdge(Map<String, Object> attrs)
-	{
-		List<mxPoint> pts = parsePoints(mxUtils.getString(attrs, "points"));
+		// Parses the absolute points list
+		List<mxPoint> pts = parsePoints(mxUtils.getString(style, "points"));
 
 		if (pts.size() > 0)
 		{
-			canvas.drawEdge(pts, attrs);
+			state.setAbsolutePoints(pts);
 		}
-	}
 
-	/**
-	 * Draws the specified label using the canvas.
-	 * 
-	 * @param attrs Specifies the attributes of the label.
-	 */
-	public void drawLabel(boolean isEdge, Map<String, Object> attrs)
-	{
-		String label = mxUtils.getString(attrs, "label");
+		// Parses the label and label bounds
+		String label = mxUtils.getString(style, "label");
 
 		if (label != null && label.length() > 0)
 		{
-			mxPoint offset = new mxPoint(mxUtils.getDouble(attrs, "dx"),
-					mxUtils.getDouble(attrs, "dy"));
-			mxRectangle vertexBounds = (!isEdge) ? new mxRectangle(mxUtils
-					.getDouble(attrs, "x"), mxUtils.getDouble(attrs, "y"),
-					mxUtils.getDouble(attrs, "width"), mxUtils.getDouble(attrs,
-							"height")) : null;
-			mxRectangle bounds = mxUtils.getLabelPaintBounds(label, attrs,
-					mxUtils.isTrue(attrs, "html", false), offset, vertexBounds,
-					scale);
-
-			canvas
-					.drawLabel(label, (int) Math.round(bounds.getX()),
-							(int) Math.round(bounds.getY()), (int) Math
-									.round(bounds.getWidth()), (int) Math
-									.round(bounds.getHeight()), attrs,
-							isHtmlLabels());
+			mxPoint offset = new mxPoint(mxUtils.getDouble(style, "dx"),
+					mxUtils.getDouble(style, "dy"));
+			mxRectangle vertexBounds = (!edge) ? state : null;
+			state.setLabelBounds(mxUtils.getLabelPaintBounds(label, state
+					.getStyle(), mxUtils.isTrue(style, "html", false), offset,
+					vertexBounds, scale));
 		}
+
+		return label;
 	}
 
 	/**

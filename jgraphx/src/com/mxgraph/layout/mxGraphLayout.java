@@ -1,11 +1,12 @@
 /**
- * $Id: mxGraphLayout.java,v 1.19 2010/01/13 10:43:46 gaudenz Exp $
  * Copyright (c) 2008-2009, JGraph Ltd
  */
 package com.mxgraph.layout;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxIGraphModel;
@@ -14,6 +15,8 @@ import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
+import com.mxgraph.view.mxGraph.mxICellVisitor;
+import com.mxgraph.view.mxGraphView;
 
 /**
  * Abstract bass class for layouts
@@ -27,6 +30,11 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 	protected mxGraph graph;
 
 	/**
+	 * The parent cell of the layout, if any
+	 */
+	protected Object parent;
+
+	/**
 	 * Boolean indicating if the bounding box of the label should be used if
 	 * its available. Default is true.
 	 */
@@ -38,6 +46,11 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 	public mxGraphLayout(mxGraph graph)
 	{
 		this.graph = graph;
+	}
+
+	public void execute(Object parent)
+	{
+		this.parent = parent;
 	}
 
 	/* (non-Javadoc)
@@ -157,6 +170,41 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 	}
 
 	/**
+	 * Disables or enables orthogonal end segments of the given edge
+	 */
+	public void setOrthogonalEdge(Object edge, boolean value)
+	{
+		graph.setCellStyles(mxConstants.STYLE_ORTHOGONAL, (value) ? "1" : "0",
+				new Object[] { edge });
+	}
+
+	public mxPoint getParentOffset(Object parent)
+	{
+		mxPoint result = new mxPoint();
+
+		if (parent != null && parent != this.parent)
+		{
+			mxIGraphModel model = graph.getModel();
+
+			if (model.isAncestor(this.parent, parent))
+			{
+				mxGeometry parentGeo = model.getGeometry(parent);
+
+				while (parent != this.parent)
+				{
+					result.setX(result.getX() + parentGeo.getX());
+					result.setY(result.getY() + parentGeo.getY());
+
+					parent = model.getParent(parent);;
+					parentGeo = model.getGeometry(parent);
+				}
+			}
+		}
+
+		return result;
+	}
+
+	/**
 	 * Sets the control points of the given edge to the given
 	 * list of mxPoints. Set the points to null to remove all
 	 * existing points for an edge.
@@ -174,6 +222,20 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 		else
 		{
 			geometry = (mxGeometry) geometry.clone();
+		}
+
+		if (this.parent != null && points != null)
+		{
+			Object parent = graph.getModel().getParent(edge);
+
+				mxPoint parentOffset = getParentOffset(parent);
+
+				for (mxPoint point : points)
+				{
+					point.setX(point.getX() - parentOffset.getX());
+					point.setY(point.getY() - parentOffset.getY());
+				}
+
 		}
 
 		geometry.setPoints(points);
@@ -202,15 +264,26 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 				double dx0 = (tmp.getX() - state.getX()) / scale;
 				double dy0 = (tmp.getY() - state.getY()) / scale;
 				double dx1 = (tmp.getX() + tmp.getWidth() - state.getX() - state
-						.getWidth())
-						/ scale;
+						.getWidth()) / scale;
 				double dy1 = (tmp.getY() + tmp.getHeight() - state.getY() - state
-						.getHeight())
-						/ scale;
+						.getHeight()) / scale;
 
-				geo = new mxRectangle(geo.getX() + dx0, geo.getY() + dy0, geo
-						.getWidth()
-						- dx0 + dx1, geo.getHeight() + -dy0 + dy1);
+				geo = new mxRectangle(geo.getX() + dx0, geo.getY() + dy0,
+						geo.getWidth() - dx0 + dx1, geo.getHeight() + -dy0
+								+ dy1);
+			}
+		}
+
+		if (this.parent != null)
+		{
+			Object parent = graph.getModel().getParent(vertex);
+			geo = (mxRectangle) geo.clone();
+
+			if (parent != null && parent != this.parent)
+			{
+				mxPoint parentOffset = getParentOffset(parent);
+				geo.setX(geo.getX() + parentOffset.getX());
+				geo.setY(geo.getY() + parentOffset.getY());
 			}
 		}
 
@@ -238,21 +311,44 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 
 		if (geometry != null)
 		{
-			result = new mxRectangle(x, y, geometry.getWidth(), geometry
-					.getHeight());
+			result = new mxRectangle(x, y, geometry.getWidth(),
+					geometry.getHeight());
+
+			mxGraphView graphView = graph.getView();
 
 			// Checks for oversize labels and offset the result
 			if (useBoundingBox)
 			{
-				mxCellState state = graph.getView().getState(vertex);
+				mxCellState state = graphView.getState(vertex);
 
-				if (state != null
-						&& state.getBoundingBox().getX() < state.getX())
+				if (state != null)
 				{
 					double scale = graph.getView().getScale();
 					mxRectangle box = state.getBoundingBox();
-					x += (state.getX() - box.getX()) / scale;
-					result.setWidth(box.getWidth());
+
+					if (state.getBoundingBox().getX() < state.getX())
+					{
+						x += (state.getX() - box.getX()) / scale;
+						result.setWidth(box.getWidth());
+					}
+					if (state.getBoundingBox().getY() < state.getY())
+					{
+						y += (state.getY() - box.getY()) / scale;
+						result.setHeight(box.getHeight());
+					}
+				}
+			}
+
+			if (this.parent != null)
+			{
+				Object parent = model.getParent(vertex);
+
+				if (parent != null && parent != this.parent)
+				{
+					mxPoint parentOffset = getParentOffset(parent);
+
+					x = x - parentOffset.getX();
+					y = y - parentOffset.getY();
 				}
 			}
 
@@ -268,5 +364,55 @@ public abstract class mxGraphLayout implements mxIGraphLayout
 
 		return result;
 	}
+	
+	/**
+	 * Updates the bounds of the given groups to include all children. Call
+	 * this with the groups in parent to child order, top-most group first, eg.
+	 * 
+	 * arrangeGroups(graph, mxUtils.sortCells(Arrays.asList(
+	 *   new Object[] { v1, v3 }), true).toArray(), 10);
+	 * @param groups the groups to adjust
+	 * @param border the border applied to the adjusted groups
+	 */
+	public void arrangeGroups(Object[] groups, int border)
+	{
+		graph.getModel().beginUpdate();
+		try
+		{
+			for (int i = groups.length - 1; i >= 0; i--)
+			{
+				Object group = groups[i];
+				Object[] children = graph.getChildVertices(group);
+				mxRectangle bounds = graph.getBoundingBoxFromGeometry(children);
 
+				mxGeometry geometry = graph.getCellGeometry(group);
+				double left = 0;
+				double top = 0;
+				
+				// Adds the size of the title area for swimlanes
+				if (this.graph.isSwimlane(group))
+				{
+					mxRectangle size = graph.getStartSize(group);
+					left = size.getWidth();
+					top = size.getHeight();
+				}
+				
+				if (bounds != null && geometry != null)
+				{
+					geometry = (mxGeometry) geometry.clone();
+					geometry.setX(geometry.getX() + bounds.getX() - border - left);
+					geometry.setY(geometry.getY() + bounds.getY() - border - top);
+					geometry.setWidth(bounds.getWidth() + 2 * border + left);
+					geometry.setHeight(bounds.getHeight() + 2 * border + top);
+					graph.getModel().setGeometry(group, geometry);
+					graph.moveCells(children, border + left - bounds.getX(),
+							border + top - bounds.getY());
+				}
+			}
+		}
+		finally
+		{
+			graph.getModel().endUpdate();
+		}
+	}
 }

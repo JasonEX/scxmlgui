@@ -13,7 +13,6 @@ package com.mxgraph.layout.hierarchical.model;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -25,7 +24,7 @@ public class mxGraphHierarchyNode extends mxGraphAbstractHierarchyCell
 	/**
 	 * Shared empty connection map to return instead of null in applyMap.
 	 */
-	//public static Collection<mxGraphHierarchyEdge> emptyConnectionMap = new ArrayList<mxGraphHierarchyEdge>(0);
+	public static Collection<mxGraphHierarchyEdge> emptyConnectionMap = new ArrayList<mxGraphHierarchyEdge>(0);
 
 	/**
 	 * The graph cell this object represents.
@@ -35,12 +34,12 @@ public class mxGraphHierarchyNode extends mxGraphAbstractHierarchyCell
 	/**
 	 * Collection of hierarchy edges that have this node as a target
 	 */
-	public Collection<mxGraphHierarchyEdge> connectsAsTarget = new LinkedHashSet<mxGraphHierarchyEdge>();
+	public Collection<mxGraphHierarchyEdge> connectsAsTarget = emptyConnectionMap;
 
 	/**
 	 * Collection of hierarchy edges that have this node as a source
 	 */
-	public Collection<mxGraphHierarchyEdge> connectsAsSource = new LinkedHashSet<mxGraphHierarchyEdge>();
+	public Collection<mxGraphHierarchyEdge> connectsAsSource = emptyConnectionMap;
 
 	/**
 	 * Assigns a unique hashcode for each node. Used by the model dfs instead
@@ -82,7 +81,7 @@ public class mxGraphHierarchyNode extends mxGraphAbstractHierarchyCell
 			
 			while (iter.hasNext())
 			{
-				mxGraphHierarchyEdge edge = (mxGraphHierarchyEdge) iter.next();
+				mxGraphHierarchyEdge edge = iter.next();
 
 				if (edge.maxRank == -1 || edge.maxRank == layer + 1)
 				{
@@ -118,7 +117,7 @@ public class mxGraphHierarchyNode extends mxGraphAbstractHierarchyCell
 
 			while (iter.hasNext())
 			{
-				mxGraphHierarchyEdge edge = (mxGraphHierarchyEdge) iter.next();
+				mxGraphHierarchyEdge edge = iter.next();
 
 				if (edge.minRank == -1 || edge.minRank == layer - 1)
 				{
@@ -191,7 +190,7 @@ public class mxGraphHierarchyNode extends mxGraphAbstractHierarchyCell
 				return true;
 			}
 			
-			if (hashCode == null || hashCode == null)
+			if (hashCode == null)
 			{
 				return false;
 			}
@@ -214,8 +213,4 @@ public class mxGraphHierarchyNode extends mxGraphAbstractHierarchyCell
 		return false;
 	}
 
-	@Override
-	public String toString() {
-		return cell.toString();
-	}
 }

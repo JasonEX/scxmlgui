@@ -1,5 +1,4 @@
 /**
- * $Id: mxPanningHandler.java,v 1.4 2009/11/24 12:00:29 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing.handler;
@@ -9,12 +8,12 @@ import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.swing.util.mxMouseControl;
+import com.mxgraph.swing.util.mxMouseAdapter;
 
 /**
  * 
  */
-public class mxPanningHandler extends mxMouseControl
+public class mxPanningHandler extends mxMouseAdapter
 {
 
 	/**
@@ -26,6 +25,11 @@ public class mxPanningHandler extends mxMouseControl
 	 * 
 	 */
 	protected mxGraphComponent graphComponent;
+	
+	/**
+	 * 
+	 */
+	protected boolean enabled = true;
 
 	/**
 	 * 
@@ -40,9 +44,24 @@ public class mxPanningHandler extends mxMouseControl
 	{
 		this.graphComponent = graphComponent;
 
-		graphComponent.getGraphControl().add(this);
 		graphComponent.getGraphControl().addMouseListener(this);
 		graphComponent.getGraphControl().addMouseMotionListener(this);
+	}
+
+	/**
+	 * 
+	 */
+	public boolean isEnabled()
+	{
+		return enabled;
+	}
+
+	/**
+	 * 
+	 */
+	public void setEnabled(boolean value)
+	{
+		enabled = value;
 	}
 
 	/**
@@ -73,7 +92,7 @@ public class mxPanningHandler extends mxMouseControl
 			int bottom = r.y + ((dy > 0) ? 0 : r.height) - dy;
 
 			graphComponent.getGraphControl().scrollRectToVisible(
-					new Rectangle(right, bottom, 1, 1));
+					new Rectangle(right, bottom, 0, 0));
 
 			e.consume();
 		}
@@ -98,4 +117,12 @@ public class mxPanningHandler extends mxMouseControl
 		start = null;
 	}
 
+	/**
+	 * Whether or not panning is currently active
+	 * @return Whether or not panning is currently active
+	 */
+	public boolean isActive()
+	{
+		return (start != null);
+	}
 }

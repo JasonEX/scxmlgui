@@ -1,6 +1,5 @@
 /**
- * $Id: mxRubberband.java,v 1.12 2009/11/29 13:48:01 gaudenz Exp $
- * Copyright (c) 2008, Gaudenz Alder
+ * Copyright (c) 2008-2012, JGraph Ltd
  */
 package com.mxgraph.swing.handler;
 
@@ -16,11 +15,11 @@ import java.awt.event.MouseMotionListener;
 
 import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.swing.mxGraphComponent.mxGraphControl;
-import com.mxgraph.util.mxConstants;
+import com.mxgraph.swing.util.mxSwingConstants;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
-import com.mxgraph.util.mxEventSource.mxIEventListener;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.util.mxEventSource.mxIEventListener;
 
 /**
  * Implements a rubberband selection.
@@ -32,13 +31,13 @@ public class mxRubberband implements MouseListener, MouseMotionListener
 	 * Defines the border color for drawing the rubberband selection.
 	 * Default is mxConstants.RUBBERBAND_BORDERCOLOR.
 	 */
-	protected Color borderColor = mxConstants.RUBBERBAND_BORDERCOLOR;
+	protected Color borderColor = mxSwingConstants.RUBBERBAND_BORDERCOLOR;
 
 	/**
 	 * Defines the color to be used for filling the rubberband selection.
 	 * Default is mxConstants.RUBBERBAND_FILLCOLOR.
 	 */
-	protected Color fillColor = mxConstants.RUBBERBAND_FILLCOLOR;
+	protected Color fillColor = mxSwingConstants.RUBBERBAND_FILLCOLOR;
 
 	/**
 	 * Reference to the enclosing graph container.
@@ -73,16 +72,15 @@ public class mxRubberband implements MouseListener, MouseMotionListener
 		graphComponent.getGraphControl().addMouseListener(this);
 		graphComponent.getGraphControl().addMouseMotionListener(this);
 
-		graphComponent.addListener(mxEvent.AFTER_PAINT,
-				new mxIEventListener()
-				{
+		graphComponent.addListener(mxEvent.AFTER_PAINT, new mxIEventListener()
+		{
 
-					public void invoke(Object source, mxEventObject evt)
-					{
-						paintRubberband((Graphics) evt.getProperty("g"));
-					}
+			public void invoke(Object source, mxEventObject evt)
+			{
+				paintRubberband((Graphics) evt.getProperty("g"));
+			}
 
-				});
+		});
 
 		// Handles escape keystrokes
 		graphComponent.addKeyListener(new KeyAdapter()
@@ -246,7 +244,7 @@ public class mxRubberband implements MouseListener, MouseMotionListener
 
 				if (bounds.x != oldBounds.x)
 				{
-					int maxleft = (int) Math.max(bounds.x, oldBounds.x);
+					int maxleft = Math.max(bounds.x, oldBounds.x);
 					Rectangle tmp = new Rectangle(union.x - 1, union.y, maxleft
 							- union.x + 2, union.height);
 					control.repaint(tmp);
@@ -254,7 +252,7 @@ public class mxRubberband implements MouseListener, MouseMotionListener
 
 				if (bounds.x + bounds.width != oldBounds.x + oldBounds.width)
 				{
-					int minright = (int) Math.min(bounds.x + bounds.width,
+					int minright = Math.min(bounds.x + bounds.width,
 							oldBounds.x + oldBounds.width);
 					Rectangle tmp = new Rectangle(minright - 1, union.y,
 							union.x + union.width - minright + 1, union.height);
@@ -263,7 +261,7 @@ public class mxRubberband implements MouseListener, MouseMotionListener
 
 				if (bounds.y != oldBounds.y)
 				{
-					int maxtop = (int) Math.max(bounds.y, oldBounds.y);
+					int maxtop = Math.max(bounds.y, oldBounds.y);
 					Rectangle tmp = new Rectangle(union.x, union.y - 1,
 							union.width, maxtop - union.y + 2);
 					control.repaint(tmp);
@@ -271,7 +269,7 @@ public class mxRubberband implements MouseListener, MouseMotionListener
 
 				if (bounds.y + bounds.height != oldBounds.y + oldBounds.height)
 				{
-					int minbottom = (int) Math.min(bounds.y + bounds.height,
+					int minbottom = Math.min(bounds.y + bounds.height,
 							oldBounds.y + oldBounds.height);
 					Rectangle tmp = new Rectangle(union.x, minbottom - 1,
 							union.width, union.y + union.height - minbottom + 1);

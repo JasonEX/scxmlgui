@@ -112,19 +112,15 @@ public class mxMultiplicity
 	public String check(mxGraph graph, Object edge, Object source,
 			Object target, int sourceOut, int targetIn)
 	{
-		mxIGraphModel model = graph.getModel();
-		Object sourceValue = model.getValue(source);
-		Object targetValue = model.getValue(target);
 		StringBuffer error = new StringBuffer();
 
-		if ((this.source && checkType(graph, sourceValue, type, attr, value))
-				|| (!this.source && checkType(graph, targetValue, type, attr,
-						value)))
+		if ((this.source && checkTerminal(graph, source, edge))
+				|| (!this.source && checkTerminal(graph, target, edge)))
 		{
 			if (!isUnlimited())
 			{
 				int m = getMaxValue();
-				
+
 				if (m == 0 || (this.source && sourceOut >= m)
 						|| (!this.source && targetIn >= m))
 				{
@@ -132,26 +128,9 @@ public class mxMultiplicity
 				}
 			}
 
-			if (validNeighbors != null)
+			if (validNeighbors != null && typeError != null && validNeighbors.size() > 0)
 			{
-				boolean isValid = !validNeighborsAllowed;
-				Iterator<String> it = validNeighbors.iterator();
-
-				while (it.hasNext())
-				{
-					String tmp = it.next();
-
-					if (this.source && checkType(graph, targetValue, tmp))
-					{
-						isValid = validNeighborsAllowed;
-						break;
-					}
-					else if (!this.source && checkType(graph, sourceValue, tmp))
-					{
-						isValid = validNeighborsAllowed;
-						break;
-					}
-				}
+				boolean isValid = checkNeighbors(graph, edge, source, target);
 
 				if (!isValid)
 				{
@@ -161,6 +140,47 @@ public class mxMultiplicity
 		}
 
 		return (error.length() > 0) ? error.toString() : null;
+	}
+
+	/**
+	 * Checks the type of the given value.
+	 */
+	public boolean checkNeighbors(mxGraph graph, Object edge, Object source,
+			Object target)
+	{
+		mxIGraphModel model = graph.getModel();
+		Object sourceValue = model.getValue(source);
+		Object targetValue = model.getValue(target);
+		boolean isValid = !validNeighborsAllowed;
+		Iterator<String> it = validNeighbors.iterator();
+
+		while (it.hasNext())
+		{
+			String tmp = it.next();
+
+			if (this.source && checkType(graph, targetValue, tmp))
+			{
+				isValid = validNeighborsAllowed;
+				break;
+			}
+			else if (!this.source && checkType(graph, sourceValue, tmp))
+			{
+				isValid = validNeighborsAllowed;
+				break;
+			}
+		}
+
+		return isValid;
+	}
+
+	/**
+	 * Checks the type of the given value.
+	 */
+	public boolean checkTerminal(mxGraph graph, Object terminal, Object edge)
+	{
+		Object userObject = graph.getModel().getValue(terminal);
+
+		return checkType(graph, userObject, type, attr, value);
 	}
 
 	/**

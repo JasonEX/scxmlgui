@@ -1,5 +1,4 @@
 /**
- * $Id: mxICell.java,v 1.13 2009/04/02 15:19:02 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.model;
@@ -150,7 +149,6 @@ public interface mxICell
 	 * @return Returns the number of children.
 	 */
 	int getChildCount();
-	public boolean hasAVertexAsChild();
 
 	/**
 	 * Returns the index of the specified child in the child array.

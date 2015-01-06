@@ -1,10 +1,7 @@
 /**
- * $Id: mxIGraphModel.java,v 1.24 2009/05/22 11:58:23 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.model;
-
-import java.util.Map;
 
 import com.mxgraph.util.mxEventSource.mxIEventListener;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
@@ -62,10 +59,6 @@ public interface mxIGraphModel
 		 */
 		public abstract void execute();
 
-		@Override
-		public String getInfoString() {
-			return this.getClass().getSimpleName();
-		}
 	}
 
 	/**
@@ -93,7 +86,7 @@ public interface mxIGraphModel
 	 * with all descendants.
 	 * @return Returns a cloned array of cells.
 	 */
-	Object[] cloneCells(Object[] cells, boolean includeChildren,Map<Object, Object> mapping);
+	Object[] cloneCells(Object[] cells, boolean includeChildren);
 
 	/**
 	 * Returns true if the given parent is an ancestor of the given child.
@@ -131,7 +124,6 @@ public interface mxIGraphModel
 	 * @return Returns the inserted child.
 	 */
 	Object add(Object parent, Object child, int index);
-	Object add(Object parent, Object child, int index,boolean covert);
 
 	/**
 	 * Removes the specified cell from the model. This operation will remove
@@ -274,7 +266,7 @@ public interface mxIGraphModel
 	 * @return Returns the new style.
 	 */
 	String setStyle(Object cell, String style);
-	String setStyleCovert(Object cell, String style);
+
 	/**
 	 * Returns true if the given cell is collapsed.
 	 * 
@@ -315,17 +307,10 @@ public interface mxIGraphModel
 	 */
 	void beginUpdate();
 
-	/**add a change element to the current edit
-	 * @param change the change to be added
-	 * @throws Exception when called not within a beginUpdate session.
-	 */
-	void addChangeToCurrentEdit(mxUndoableChange change) throws Exception;
-	
 	/**
 	 * Decrements the updateLevel by one and fires a notification event if the
 	 * updateLevel reaches 0.
 	 */
-	void endUpdate(boolean validate);
 	void endUpdate();
 
 	/**
@@ -348,14 +333,4 @@ public interface mxIGraphModel
 	 */
 	void removeListener(mxIEventListener listener, String eventName);
 
-/*	void highlightCell(mxCell node, String strokeColor);
-	void highlightCell(mxCell node, String strokeColor, String width);
-	void highlightCell(mxCell node, String strokeColor, String width,String fontColor);
-	void highlightCell(mxCell node, String strokeColor, String width,String fontColor,String labelBackground);*/
-	
-	public boolean isLoop(mxIGraphModel model, Object edge);
-	
-	public Object getNearestCommonAncestor(Object cell1, Object cell2);
-	
-	public void clearCells();
 }

@@ -11,6 +11,7 @@
 
 package com.mxgraph.layout.hierarchical.stage;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -29,7 +30,6 @@ import com.mxgraph.layout.hierarchical.model.mxGraphHierarchyRank;
 public class mxMedianHybridCrossingReduction implements
 		mxHierarchicalLayoutStage/*, JGraphLayout.Stoppable*/
 {
-
 	/**
 	 * Reference to the enclosing layout algorithm
 	 */
@@ -106,7 +106,7 @@ public class mxMedianHybridCrossingReduction implements
 
 					for (int k = 0; k < rank.size(); k++)
 					{
-						mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
+						mxGraphAbstractHierarchyCell cell = iter
 								.next();
 						nestedBestRanks[j][cell.getGeneralPurposeVariable(j)] = cell;
 					}
@@ -127,7 +127,7 @@ public class mxMedianHybridCrossingReduction implements
 
 					for (int k = 0; k < rank.size(); k++)
 					{
-						mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
+						mxGraphAbstractHierarchyCell cell = iter
 								.next();
 						cell.setGeneralPurposeVariable(j, k);
 					}
@@ -302,7 +302,7 @@ public class mxMedianHybridCrossingReduction implements
 
 				for (int j = 0; j < orderedCells.length; j++)
 				{
-					mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
+					mxGraphAbstractHierarchyCell cell = iter
 							.next();
 					orderedCells[cell.getGeneralPurposeVariable(i)] = cell;
 				}
@@ -343,13 +343,13 @@ public class mxMedianHybridCrossingReduction implements
 
 						for (int k = 0; k < leftAbovePositions.length; k++)
 						{
-							leftAbovePositions[k] = ((mxGraphAbstractHierarchyCell) leftCellAboveConnections
-									.get(k)).getGeneralPurposeVariable(i + 1);
+							leftAbovePositions[k] = leftCellAboveConnections
+									.get(k).getGeneralPurposeVariable(i + 1);
 						}
 
 						for (int k = 0; k < leftBelowPositions.length; k++)
 						{
-							leftBelowPositions[k] = ((mxGraphAbstractHierarchyCell) leftCellBelowConnections
+							leftBelowPositions[k] = (leftCellBelowConnections
 									.get(k)).getGeneralPurposeVariable(i - 1);
 						}
 					}
@@ -375,13 +375,13 @@ public class mxMedianHybridCrossingReduction implements
 
 					for (int k = 0; k < rightAbovePositions.length; k++)
 					{
-						rightAbovePositions[k] = ((mxGraphAbstractHierarchyCell) rightCellAboveConnections
+						rightAbovePositions[k] = (rightCellAboveConnections
 								.get(k)).getGeneralPurposeVariable(i + 1);
 					}
 
 					for (int k = 0; k < rightBelowPositions.length; k++)
 					{
-						rightBelowPositions[k] = ((mxGraphAbstractHierarchyCell) rightCellBelowConnections
+						rightBelowPositions[k] = (rightCellBelowConnections
 								.get(k)).getGeneralPurposeVariable(i - 1);
 					}
 
@@ -492,17 +492,19 @@ public class mxMedianHybridCrossingReduction implements
 	private void medianRank(int rankValue, boolean downwardSweep)
 	{
 		int numCellsForRank = nestedBestRanks[rankValue].length;
-		MedianCellSorter[] medianValues = new MedianCellSorter[numCellsForRank];
+		ArrayList<MedianCellSorter> medianValues = new ArrayList<MedianCellSorter>(numCellsForRank);
+		boolean[] reservedPositions = new boolean[numCellsForRank];
 
 		for (int i = 0; i < numCellsForRank; i++)
 		{
-			mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) nestedBestRanks[rankValue][i];
-			medianValues[i] = new MedianCellSorter();
-			medianValues[i].cell = cell;
+			mxGraphAbstractHierarchyCell cell = nestedBestRanks[rankValue][i];
+			MedianCellSorter sorterEntry = new MedianCellSorter();
+			sorterEntry.cell = cell;
 
 			// Flip whether or not equal medians are flipped on up and down
 			// sweeps
-			medianValues[i].nudge = !downwardSweep;
+			// todo reimplement some kind of nudging depending on sweep
+			//nudge = !downwardSweep;
 			Collection<mxGraphAbstractHierarchyCell> nextLevelConnectedCells;
 
 			if (downwardSweep)
@@ -530,26 +532,32 @@ public class mxMedianHybridCrossingReduction implements
 			if (nextLevelConnectedCells != null
 					&& nextLevelConnectedCells.size() != 0)
 			{
-				medianValues[i].medianValue = medianValue(
+				sorterEntry.medianValue = medianValue(
 						nextLevelConnectedCells, nextRankValue);
+				medianValues.add(sorterEntry);
 			}
 			else
 			{
-				// Nodes with no adjacent vertices are given a median value of
-				// -1 to indicate to the median function that they should be
-				// left of their current position if possible.
-				medianValues[i].medianValue = -1.0; // TODO needs to account for
-				// both layers
+				// Nodes with no adjacent vertices are flagged in the reserved array 
+				// to indicate they should be left in their current position.
+				reservedPositions[cell.getGeneralPurposeVariable(rankValue)] = true;
 			}
 		}
 
-		Arrays.sort(medianValues);
+		MedianCellSorter[] medianArray = medianValues.toArray(new MedianCellSorter[medianValues.size()]);
+		Arrays.sort(medianArray);
 
 		// Set the new position of each node within the rank using
 		// its temp variable
+		int index = 0;
+		
 		for (int i = 0; i < numCellsForRank; i++)
 		{
-			medianValues[i].cell.setGeneralPurposeVariable(rankValue, i);
+			if (!reservedPositions[i])
+			{
+				MedianCellSorter wrapper = medianArray[index++];
+				wrapper.cell.setGeneralPurposeVariable(rankValue, i);
+			}
 		}
 	}
 
@@ -574,7 +582,7 @@ public class mxMedianHybridCrossingReduction implements
 
 		while (iter.hasNext())
 		{
-			medianValues[arrayCount++] = ((mxGraphAbstractHierarchyCell) iter
+			medianValues[arrayCount++] = (iter
 					.next()).getGeneralPurposeVariable(rankValue);
 		}
 
@@ -615,11 +623,6 @@ public class mxMedianHybridCrossingReduction implements
 		public double medianValue = 0.0;
 
 		/**
-		 * Whether or not to flip equal median values.
-		 */
-		public boolean nudge = false;
-
-		/**
 		 * The cell whose median value is being calculated
 		 */
 		mxGraphAbstractHierarchyCell cell = null;
@@ -644,24 +647,9 @@ public class mxMedianHybridCrossingReduction implements
 				{
 					return 1;
 				}
-				else
-				{
-					if (nudge)
-					{
-						return -1;
-					}
-					else
-					{
-						return 1;
-					}
-				}
 			}
-			else
-			{
-				return 0;
-			}
+			
+			return 0;
 		}
-
 	}
-
 }

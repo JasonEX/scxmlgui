@@ -1,5 +1,4 @@
 /**
- * $Id: mxCellEditor.java,v 1.18 2010/02/18 09:01:29 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing.view;
@@ -8,16 +7,27 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Rectangle;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.awt.event.ActionEvent;
+import java.io.IOException;
+import java.io.Writer;
 import java.util.EventObject;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.InputMap;
 import javax.swing.JEditorPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
 import javax.swing.text.JTextComponent;
+import javax.swing.text.StyledDocument;
+import javax.swing.text.html.HTMLDocument;
+import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.HTMLWriter;
+import javax.swing.text.html.MinimalHTMLWriter;
 
 import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxIGraphModel;
@@ -32,6 +42,21 @@ import com.mxgraph.view.mxCellState;
  */
 public class mxCellEditor implements mxICellEditor
 {
+
+	/**
+	 * 
+	 */
+	private static final String CANCEL_EDITING = "cancel-editing";
+
+	/**
+	 * 
+	 */
+	private static final String INSERT_BREAK = "insert-break";
+
+	/**
+	 * 
+	 */
+	private static final String SUBMIT_TEXT = "submit-text";
 
 	/**
 	 * 
@@ -95,48 +120,69 @@ public class mxCellEditor implements mxICellEditor
 	protected transient JEditorPane editorPane;
 
 	/**
+	 * Specifies if the text content of the HTML body should be extracted
+	 * before and after editing for HTML markup. Default is true.
+	 */
+	protected boolean extractHtmlBody = true;
+
+	/**
+	 * Specifies if linefeeds should be replaced with BREAKS before editing,
+	 * and BREAKS should be replaced with linefeeds after editing. This
+	 * value is ignored if extractHtmlBody is false. Default is true.
+	 */
+	protected boolean replaceLinefeeds = true;
+
+	/**
+	 * Specifies if shift ENTER should submit text if enterStopsCellEditing
+	 * is true. Default is false.
+	 */
+	protected boolean shiftEnterSubmitsText = false;
+
+	/**
 	 * 
 	 */
-	protected transient KeyAdapter keyListener = new KeyAdapter()
+	transient Object editorEnterActionMapKey;
+
+	/**
+	 * 
+	 */
+	transient Object textEnterActionMapKey;
+
+	/**
+	 * 
+	 */
+	transient KeyStroke escapeKeystroke = KeyStroke.getKeyStroke("ESCAPE");
+
+	/**
+	 * 
+	 */
+	transient KeyStroke enterKeystroke = KeyStroke.getKeyStroke("ENTER");
+
+	/**
+	 * 
+	 */
+	transient KeyStroke shiftEnterKeystroke = KeyStroke
+			.getKeyStroke("shift ENTER");
+
+	/**
+	 * 
+	 */
+	protected AbstractAction cancelEditingAction = new AbstractAction()
 	{
-		/**
-		 * 
-		 */
-		protected transient boolean ignoreEnter = false;
-
-		/**
-		 * 
-		 */
-		public void keyPressed(KeyEvent e)
+		public void actionPerformed(ActionEvent e)
 		{
-			if (graphComponent.isEnterStopsCellEditing()
-					&& e.getKeyCode() == KeyEvent.VK_ENTER)
-			{
-				if (e.isShiftDown() || e.isControlDown() || e.isAltDown())
-				{
-					if (!ignoreEnter)
-					{
-						ignoreEnter = true;
+			stopEditing(true);
+		}
+	};
 
-						// Redirects the event with no modifier keys
-						try
-						{
-							KeyEvent event = new KeyEvent((Component) e
-									.getSource(), e.getID(), e.getWhen(), 0, e
-									.getKeyCode(), e.getKeyChar());
-							((Component) e.getSource()).dispatchEvent(event);
-						}
-						finally
-						{
-							ignoreEnter = false;
-						}
-					}
-				}
-				else if (!ignoreEnter)
-				{
-					stopEditing(false);
-				}
-			}
+	/**
+	 * 
+	 */
+	protected AbstractAction textSubmitAction = new AbstractAction()
+	{
+		public void actionPerformed(ActionEvent e)
+		{
+			stopEditing(false);
 		}
 	};
 
@@ -156,8 +202,11 @@ public class mxCellEditor implements mxICellEditor
 		editorPane = new JEditorPane();
 		editorPane.setOpaque(false);
 		editorPane.setContentType("text/html");
-		installKeyHandler();
-		
+
+		// Workaround for inserted linefeeds in HTML markup with
+		// lines that are longar than 80 chars
+		editorPane.setEditorKit(new NoLinefeedHtmlEditorKit());
+
 		// Creates the scollpane that contains the editor
 		// FIXME: Cursor not visible when scrolling
 		scrollPane = new JScrollPane();
@@ -165,16 +214,104 @@ public class mxCellEditor implements mxICellEditor
 		scrollPane.getViewport().setOpaque(false);
 		scrollPane.setVisible(false);
 		scrollPane.setOpaque(false);
+
+		// Installs custom actions
+		editorPane.getActionMap().put(CANCEL_EDITING, cancelEditingAction);
+		textArea.getActionMap().put(CANCEL_EDITING, cancelEditingAction);
+		editorPane.getActionMap().put(SUBMIT_TEXT, textSubmitAction);
+		textArea.getActionMap().put(SUBMIT_TEXT, textSubmitAction);
+
+		// Remembers the action map key for the enter keystroke
+		editorEnterActionMapKey = editorPane.getInputMap().get(enterKeystroke);
+		textEnterActionMapKey = editorPane.getInputMap().get(enterKeystroke);
+	}
+
+	/**
+	 * Returns replaceHtmlLinefeeds
+	 */
+	public boolean isExtractHtmlBody()
+	{
+		return extractHtmlBody;
+	}
+
+	/**
+	 * Sets extractHtmlBody
+	 */
+	public void setExtractHtmlBody(boolean value)
+	{
+		extractHtmlBody = value;
+	}
+
+	/**
+	 * Returns replaceHtmlLinefeeds
+	 */
+	public boolean isReplaceHtmlLinefeeds()
+	{
+		return replaceLinefeeds;
+	}
+
+	/**
+	 * Sets replaceHtmlLinefeeds
+	 */
+	public void setReplaceHtmlLinefeeds(boolean value)
+	{
+		replaceLinefeeds = value;
+	}
+
+	/**
+	 * Returns shiftEnterSubmitsText
+	 */
+	public boolean isShiftEnterSubmitsText()
+	{
+		return shiftEnterSubmitsText;
+	}
+
+	/**
+	 * Sets shiftEnterSubmitsText
+	 */
+	public void setShiftEnterSubmitsText(boolean value)
+	{
+		shiftEnterSubmitsText = value;
 	}
 
 	/**
 	 * Installs the keyListener in the textArea and editorPane
 	 * for handling the enter keystroke and updating the modified state.
 	 */
-	protected void installKeyHandler()
+	protected void configureActionMaps()
 	{
-		textArea.addKeyListener(keyListener);
-		editorPane.addKeyListener(keyListener);
+		InputMap editorInputMap = editorPane.getInputMap();
+		InputMap textInputMap = textArea.getInputMap();
+
+		// Adds handling for the escape key to cancel editing
+		editorInputMap.put(escapeKeystroke, cancelEditingAction);
+		textInputMap.put(escapeKeystroke, cancelEditingAction);
+
+		// Adds handling for shift-enter and redirects enter to stop editing
+		if (graphComponent.isEnterStopsCellEditing())
+		{
+			editorInputMap.put(shiftEnterKeystroke, editorEnterActionMapKey);
+			textInputMap.put(shiftEnterKeystroke, textEnterActionMapKey);
+
+			editorInputMap.put(enterKeystroke, SUBMIT_TEXT);
+			textInputMap.put(enterKeystroke, SUBMIT_TEXT);
+		}
+		else
+		{
+			editorInputMap.put(enterKeystroke, editorEnterActionMapKey);
+			textInputMap.put(enterKeystroke, textEnterActionMapKey);
+
+			if (isShiftEnterSubmitsText())
+			{
+				editorInputMap.put(shiftEnterKeystroke, SUBMIT_TEXT);
+				textInputMap.put(shiftEnterKeystroke, SUBMIT_TEXT);
+			}
+			else
+			{
+				editorInputMap.remove(shiftEnterKeystroke);
+				textInputMap.remove(shiftEnterKeystroke);
+			}
+		}
 	}
 
 	/**
@@ -255,9 +392,11 @@ public class mxCellEditor implements mxICellEditor
 			}
 		}
 
-		bounds.setSize((int) Math.max(bounds.getWidth(), Math
-				.round(minimumWidth * scale)), (int) Math.max(bounds
-				.getHeight(), Math.round(minimumHeight * scale)));
+		bounds.setSize(
+				(int) Math.max(bounds.getWidth(),
+						Math.round(minimumWidth * scale)),
+				(int) Math.max(bounds.getHeight(),
+						Math.round(minimumHeight * scale)));
 
 		return bounds;
 	}
@@ -266,7 +405,7 @@ public class mxCellEditor implements mxICellEditor
 	 * (non-Javadoc)
 	 * @see com.mxgraph.swing.view.mxICellEditor#startEditing(java.lang.Object, java.util.EventObject)
 	 */
-	public void startEditing(Object cell, EventObject trigger)
+	public void startEditing(Object cell, EventObject evt)
 	{
 		if (editingCell != null)
 		{
@@ -277,23 +416,29 @@ public class mxCellEditor implements mxICellEditor
 
 		if (state != null)
 		{
+			editingCell = cell;
+			trigger = evt;
+
 			double scale = Math.max(minimumEditorScale, graphComponent
 					.getGraph().getView().getScale());
-			JTextComponent currentEditor = null;
-			this.trigger = trigger;
-			editingCell = cell;
-
 			scrollPane.setBounds(getEditorBounds(state, scale));
 			scrollPane.setVisible(true);
 
-			String value = getInitialValue(state, trigger);
+			String value = getInitialValue(state, evt);
+			JTextComponent currentEditor = null;
 
 			// Configures the style of the in-place editor
 			if (graphComponent.getGraph().isHtmlLabel(cell))
 			{
-				editorPane.setDocument(mxUtils.createHtmlDocumentObject(state
-						.getStyle(), scale));
-				editorPane.setText(mxUtils.getBodyMarkup(value, true));
+				if (isExtractHtmlBody())
+				{
+					value = mxUtils.getBodyMarkup(value,
+							isReplaceHtmlLinefeeds());
+				}
+
+				editorPane.setDocument(mxUtils.createHtmlDocumentObject(
+						state.getStyle(), scale));
+				editorPane.setText(value);
 
 				// Workaround for wordwrapping in editor pane
 				// FIXME: Cursor not visible at end of line
@@ -326,6 +471,8 @@ public class mxCellEditor implements mxICellEditor
 			currentEditor.revalidate();
 			currentEditor.requestFocusInWindow();
 			currentEditor.selectAll();
+
+			configureActionMaps();
 		}
 	}
 
@@ -385,12 +532,24 @@ public class mxCellEditor implements mxICellEditor
 	 */
 	public String getCurrentValue()
 	{
+		String result;
+
 		if (textArea.getParent() != null)
 		{
-			return textArea.getText();
+			result = textArea.getText();
+		}
+		else
+		{
+			result = editorPane.getText();
+
+			if (isExtractHtmlBody())
+			{
+				result = mxUtils
+						.getBodyMarkup(result, isReplaceHtmlLinefeeds());
+			}
 		}
 
-		return editorPane.getText();
+		return result;
 	}
 
 	/*
@@ -448,6 +607,57 @@ public class mxCellEditor implements mxICellEditor
 	public void setMinimumHeight(int minimumHeight)
 	{
 		this.minimumHeight = minimumHeight;
+	}
+
+	/**
+	 * Workaround for inserted linefeeds when getting text from HTML editor.
+	 */
+	class NoLinefeedHtmlEditorKit extends HTMLEditorKit
+	{
+		public void write(Writer out, Document doc, int pos, int len)
+				throws IOException, BadLocationException
+		{
+			if (doc instanceof HTMLDocument)
+			{
+				NoLinefeedHtmlWriter w = new NoLinefeedHtmlWriter(out,
+						(HTMLDocument) doc, pos, len);
+
+				// the default behavior of write() was to setLineLength(80) which resulted in
+				// the inserting or a CR/LF around the 80ith character in any given
+				// line. This was not good because if a merge tag was in that range, it would
+				// insert CR/LF in between the merge tag and then the replacement of
+				// merge tag with bean values was not working.
+				w.setLineLength(Integer.MAX_VALUE);
+				w.write();
+			}
+			else if (doc instanceof StyledDocument)
+			{
+				MinimalHTMLWriter w = new MinimalHTMLWriter(out,
+						(StyledDocument) doc, pos, len);
+				w.write();
+			}
+			else
+			{
+				super.write(out, doc, pos, len);
+			}
+		}
+	}
+
+	/**
+	 * Subclassed to make setLineLength visible for the custom editor kit.
+	 */
+	class NoLinefeedHtmlWriter extends HTMLWriter
+	{
+		public NoLinefeedHtmlWriter(Writer buf, HTMLDocument doc, int pos,
+				int len)
+		{
+			super(buf, doc, pos, len);
+		}
+
+		protected void setLineLength(int l)
+		{
+			super.setLineLength(l);
+		}
 	}
 
 }

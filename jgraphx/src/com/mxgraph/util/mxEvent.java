@@ -1,5 +1,4 @@
 /**
- * $Id: mxEvent.java,v 1.8 2009/12/09 19:33:26 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.util;
@@ -9,6 +8,11 @@ package com.mxgraph.util;
  */
 public class mxEvent
 {
+	
+	/**
+	 * 
+	 */
+	public static final String DONE = "done";
 
 	/**
 	 * 
@@ -19,7 +23,7 @@ public class mxEvent
 	 * 
 	 */
 	public static final String CELLS_ADDED = "cellsAdded";
-	
+
 	/**
 	 * 
 	 */
@@ -29,6 +33,11 @@ public class mxEvent
 	 * 
 	 */
 	public static final String CONNECT_CELL = "connectCell";
+
+	/**
+	 * 
+	 */
+	public static final String CONNECT = "connect";
 
 	/**
 	 * 
@@ -153,6 +162,11 @@ public class mxEvent
 	/**
 	 * 
 	 */
+	public static final String PAINT = "paint";
+
+	/**
+	 * 
+	 */
 	public static final String AFTER_PAINT = "afterPaint";
 
 	/**
@@ -202,10 +216,6 @@ public class mxEvent
 	 */
 	public static final String CHANGE = "change";
 
-	public static final String REQUEST_VALIDATION = "start-validate";
-	public static final String VALIDATION_DONE = "validate-done";
-	public static final String VALIDATION_PRE_START = "validate-pre-start";
-
 	/**
 	 * Holds the name for the execute event. First and only argument in the
 	 * argument array is the mxAtomicGraphChange that has been executed on the 
@@ -244,12 +254,22 @@ public class mxEvent
 	/**
 	 * 
 	 */
+	public static final String INSERT = "insert";
+
+	/**
+	 * 
+	 */
 	public static final String ADD = "add";
 
 	/**
 	 * 
 	 */
 	public static final String CLEAR = "clear";
+
+	/**
+	 * 
+	 */
+	public static final String FIRED = "fired";
 
 	/**
 	 * 
@@ -285,5 +305,20 @@ public class mxEvent
 	 * 
 	 */
 	public static String LAYOUT_CELLS = "layoutCells";
+
+	/**
+	 * 
+	 */
+	public static String START = "start";
+
+	/**
+	 * 
+	 */
+	public static String CONTINUE = "continue";
+
+	/**
+	 * 
+	 */
+	public static String STOP = "stop";
 
 }

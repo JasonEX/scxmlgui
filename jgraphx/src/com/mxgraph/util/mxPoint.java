@@ -1,6 +1,5 @@
 /**
- * $Id: mxPoint.java,v 1.5 2009/11/24 12:00:28 gaudenz Exp $
- * Copyright (c) 2007, Gaudenz Alder
+ * Copyright (c) 2007-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.util;
 
@@ -95,7 +94,7 @@ public class mxPoint implements Serializable, Cloneable
 	}
 
 	/**
-	 * Sets the x-coordinate of the point.
+	 * Sets the y-coordinate of the point.
 	 * 
 	 * @param value Double that specifies the new x-coordinate.
 	 */
@@ -151,9 +150,14 @@ public class mxPoint implements Serializable, Cloneable
 
 		return clone;
 	}
-	
-	public String toString() {
-		return "mxPoint ["+x+","+y+"]";
-	}
 
+	/**
+	 * Returns a <code>String</code> that represents the value
+	 * of this <code>mxPoint</code>.
+	 * @return a string representation of this <code>mxPoint</code>.
+	 */
+	public String toString()
+	{
+		return getClass().getName() + "[" + x + ", " + y + "]";
+	}
 }

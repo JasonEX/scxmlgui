@@ -1,6 +1,5 @@
 /**
- * $Id: mxCellHandler.java,v 1.19 2009/08/26 13:53:40 gaudenz Exp $
- * Copyright (c) 2008, Gaudenz Alder
+ * Copyright (c) 2008-2012, JGraph Ltd
  */
 package com.mxgraph.swing.handler;
 
@@ -9,12 +8,14 @@ import java.awt.Cursor;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 
 import javax.swing.JComponent;
 
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.util.mxConstants;
+import com.mxgraph.swing.util.mxSwingConstants;
+import com.mxgraph.util.mxRectangle;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 
@@ -24,7 +25,6 @@ import com.mxgraph.view.mxGraph;
  */
 public class mxCellHandler
 {
-
 	/**
 	 * Reference to the enclosing graph component.
 	 */
@@ -76,7 +76,7 @@ public class mxCellHandler
 		this.graphComponent = graphComponent;
 		refresh(state);
 	}
-	
+
 	/**
 	 * 
 	 */
@@ -93,18 +93,31 @@ public class mxCellHandler
 		this.state = state;
 		handles = createHandles();
 		mxGraph graph = graphComponent.getGraph();
-		bounds = graph.getBoundingBox(state.getCell()).getRectangle();
+		mxRectangle tmp = graph.getBoundingBox(state.getCell());
 
-		if (handles != null)
+		if (tmp != null)
 		{
-			for (int i = 0; i < handles.length; i++)
+			bounds = tmp.getRectangle();
+
+			if (handles != null)
 			{
-				if (isHandleVisible(i))
+				for (int i = 0; i < handles.length; i++)
 				{
-					bounds.add(handles[i]);
+					if (isHandleVisible(i))
+					{
+						bounds.add(handles[i]);
+					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * 
+	 */
+	public mxGraphComponent getGraphComponent()
+	{
+		return graphComponent;
 	}
 
 	/**
@@ -113,6 +126,14 @@ public class mxCellHandler
 	public mxCellState getState()
 	{
 		return state;
+	}
+
+	/**
+	 * Returns the index of the current handle.
+	 */
+	public int getIndex()
+	{
+		return index;
 	}
 
 	/**
@@ -129,8 +150,8 @@ public class mxCellHandler
 	public boolean isLabelMovable()
 	{
 		mxGraph graph = graphComponent.getGraph();
-
 		String label = graph.getLabel(state.getCell());
+
 		return graph.isLabelMovable(state.getCell()) && label != null
 				&& label.length() > 0;
 	}
@@ -217,7 +238,6 @@ public class mxCellHandler
 	{
 		if (!e.isConsumed())
 		{
-			//System.out.println("mouse pressed in mxCellHandler");
 			int tmp = getIndexAt(e.getX(), e.getY());
 
 			if (!isIgnoredEvent(e) && tmp >= 0 && isHandleEnabled(tmp))
@@ -250,7 +270,7 @@ public class mxCellHandler
 				else
 				{
 					graphComponent.getGraphControl().setCursor(
-							mxConnectionHandler.DEFAULT_CURSOR);
+							new Cursor(Cursor.HAND_CURSOR));
 				}
 			}
 		}
@@ -261,7 +281,6 @@ public class mxCellHandler
 	 */
 	public void mouseDragged(MouseEvent e)
 	{
-		//System.out.println("mouse dragged in mxCellHandler");
 		// empty
 	}
 
@@ -336,7 +355,9 @@ public class mxCellHandler
 		{
 			for (int i = 0; i < handles.length; i++)
 			{
-				if (isHandleVisible(i))
+				if (isHandleVisible(i)
+						&& g.hitClip(handles[i].x, handles[i].y,
+								handles[i].width, handles[i].height))
 				{
 					g.setColor(getHandleFillColor(i));
 					g.fillRect(handles[i].x, handles[i].y, handles[i].width,
@@ -348,6 +369,24 @@ public class mxCellHandler
 				}
 			}
 		}
+	}
+
+	/**
+	 * Returns the color used to draw the selection border. This implementation
+	 * returns null.
+	 */
+	public Color getSelectionColor()
+	{
+		return null;
+	}
+
+	/**
+	 * Returns the stroke used to draw the selection border. This implementation
+	 * returns null.
+	 */
+	public Stroke getSelectionStroke()
+	{
+		return null;
 	}
 
 	/**
@@ -373,10 +412,10 @@ public class mxCellHandler
 	{
 		if (isLabel(index))
 		{
-			return mxConstants.LABEL_HANDLE_FILLCOLOR;
+			return mxSwingConstants.LABEL_HANDLE_FILLCOLOR;
 		}
 
-		return mxConstants.HANDLE_FILLCOLOR;
+		return mxSwingConstants.HANDLE_FILLCOLOR;
 	}
 
 	/**
@@ -384,7 +423,16 @@ public class mxCellHandler
 	 */
 	protected Color getHandleBorderColor(int index)
 	{
-		return mxConstants.HANDLE_BORDERCOLOR;
+		return mxSwingConstants.HANDLE_BORDERCOLOR;
+	}
+	
+	/**
+	 * Invoked when the handler is no longer used. This is an empty
+	 * hook for subclassers.
+	 */
+	protected void destroy()
+	{
+		// nop
 	}
 
 }

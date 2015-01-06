@@ -1,5 +1,4 @@
 /**
- * $Id: mxStylesheet.java,v 1.25 2010/01/13 10:43:46 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.view;
@@ -154,7 +153,7 @@ public class mxStylesheet
 	 * Returns the cell style for the specified cell or the given defaultStyle
 	 * if no style can be found for the given stylename.
 	 * 
-	 * @param name String of the form stylename[;key=value] that represents the
+	 * @param name String of the form [(stylename|key=value);] that represents the
 	 * style.
 	 * @param defaultStyle Default style to be returned if no style can be found.
 	 * @return Returns the style for the given formatted cell style.
@@ -168,44 +167,41 @@ public class mxStylesheet
 		{
 			String[] pairs = name.split(";");
 
-			if (pairs != null && pairs.length > 0)
+			if (style != null && !name.startsWith(";"))
 			{
-				if (style != null && pairs[0].indexOf('=') >= 0)
-				{
-					style = new Hashtable<String, Object>(style);
-				}
-				else
-				{
-					style = new Hashtable<String, Object>();
-				}
+				style = new Hashtable<String, Object>(style);
+			}
+			else
+			{
+				style = new Hashtable<String, Object>();
+			}
 
-				for (int i = 0; i < pairs.length; i++)
-				{
-					String tmp = pairs[i];
-					int c = tmp.indexOf('=');
+			for (int i = 0; i < pairs.length; i++)
+			{
+				String tmp = pairs[i];
+				int c = tmp.indexOf('=');
 
-					if (c >= 0)
+				if (c >= 0)
+				{
+					String key = tmp.substring(0, c);
+					String value = tmp.substring(c + 1);
+
+					if (value.equals(mxConstants.NONE))
 					{
-						String key = tmp.substring(0, c);
-						String value = tmp.substring(c + 1);
-
-						if (value.equals(mxConstants.NONE))
-						{
-							style.remove(key);
-						}
-						else
-						{
-							style.put(key, value);
-						}
+						style.remove(key);
 					}
 					else
 					{
-						Map<String, Object> tmpStyle = styles.get(tmp);
+						style.put(key, value);
+					}
+				}
+				else
+				{
+					Map<String, Object> tmpStyle = styles.get(tmp);
 
-						if (tmpStyle != null)
-						{
-							style.putAll(tmpStyle);
-						}
+					if (tmpStyle != null)
+					{
+						style.putAll(tmpStyle);
 					}
 				}
 			}

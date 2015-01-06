@@ -1,14 +1,11 @@
 /**
- * $Id: mxGraphTransferHandler.java,v 1.13 2009/11/24 12:00:29 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing.handler;
 
 import java.awt.Color;
 import java.awt.Image;
-import java.awt.MouseInfo;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 
@@ -55,7 +52,13 @@ public class mxGraphTransferHandler extends TransferHandler
 	/**
 	 * Reference to the last imported cell array.
 	 */
-	protected Object[] lastImported;
+	protected Transferable lastImported;
+
+	/**
+	 * Sets the value for the initialImportCount. Default is 1. Updated in
+	 * exportDone to contain 0 after a cut and 1 after a copy.
+	 */
+	protected int initialImportCount = 1;
 
 	/**
 	 * Counter for the last imported cell array.
@@ -83,6 +86,22 @@ public class mxGraphTransferHandler extends TransferHandler
 	 * 
 	 */
 	protected Point offset;
+
+	/**
+	 * 
+	 */
+	public int getImportCount()
+	{
+		return importCount;
+	}
+
+	/**
+	 * 
+	 */
+	public void setImportCount(int value)
+	{
+		importCount = value;
+	}
 
 	/**
 	 * 
@@ -177,8 +196,7 @@ public class mxGraphTransferHandler extends TransferHandler
 				if (originalCells.length > 0)
 				{
 					ImageIcon icon = (transferImageEnabled) ? createTransferableImage(
-							graphComponent, originalCells)
-							: null;
+							graphComponent, originalCells) : null;
 
 					return createGraphTransferable(graphComponent,
 							originalCells, icon);
@@ -207,7 +225,18 @@ public class mxGraphTransferHandler extends TransferHandler
 		bounds.setWidth(bounds.getWidth() / scale);
 		bounds.setHeight(bounds.getHeight() / scale);
 
-		return new mxGraphTransferable(graph.cloneCells(cells), bounds, icon);
+		return createGraphTransferable(graphComponent, cells, bounds, icon);
+	}
+
+	/**
+	 * 
+	 */
+	public mxGraphTransferable createGraphTransferable(
+			mxGraphComponent graphComponent, Object[] cells,
+			mxRectangle bounds, ImageIcon icon)
+	{
+		return new mxGraphTransferable(graphComponent.getGraph().cloneCells(
+				cells), bounds, icon);
 	}
 
 	/**
@@ -219,9 +248,9 @@ public class mxGraphTransferHandler extends TransferHandler
 		ImageIcon icon = null;
 		Color bg = (transferImageBackground != null) ? transferImageBackground
 				: graphComponent.getBackground();
-		Image img = mxCellRenderer.createBufferedImage(graphComponent
-				.getGraph(), cells, 1, bg, graphComponent.isAntiAlias(), null,
-				graphComponent.getCanvas());
+		Image img = mxCellRenderer.createBufferedImage(
+				graphComponent.getGraph(), cells, 1, bg,
+				graphComponent.isAntiAlias(), null, graphComponent.getCanvas());
 
 		if (img != null)
 		{
@@ -236,6 +265,8 @@ public class mxGraphTransferHandler extends TransferHandler
 	 */
 	public void exportDone(JComponent c, Transferable data, int action)
 	{
+		initialImportCount = 1;
+		
 		if (c instanceof mxGraphComponent
 				&& data instanceof mxGraphTransferable)
 		{
@@ -246,6 +277,7 @@ public class mxGraphTransferHandler extends TransferHandler
 			if (action == TransferHandler.MOVE && !isLocalDrop)
 			{
 				removeCells((mxGraphComponent) c, originalCells);
+				initialImportCount = 0;
 			}
 		}
 
@@ -271,7 +303,8 @@ public class mxGraphTransferHandler extends TransferHandler
 	}
 
 	/**
-	 * 
+	 * Checks if the mxGraphTransferable data flavour is supported and calls
+	 * importGraphTransferable if possible.
 	 */
 	public boolean importData(JComponent c, Transferable t)
 	{
@@ -286,21 +319,21 @@ public class mxGraphTransferHandler extends TransferHandler
 		{
 			try
 			{
+				updateImportCount(t);
+
 				if (c instanceof mxGraphComponent)
 				{
 					mxGraphComponent graphComponent = (mxGraphComponent) c;
 
 					if (graphComponent.isEnabled()
-							&& t
-									.isDataFlavorSupported(mxGraphTransferable.dataFlavor))
+							&& t.isDataFlavorSupported(mxGraphTransferable.dataFlavor))
 					{
 						mxGraphTransferable gt = (mxGraphTransferable) t
 								.getTransferData(mxGraphTransferable.dataFlavor);
 
 						if (gt.getCells() != null)
 						{
-							result = importCells(graphComponent, gt.getCells(),
-									gt.getBounds());
+							result = importGraphTransferable(graphComponent, gt);
 						}
 
 					}
@@ -316,10 +349,27 @@ public class mxGraphTransferHandler extends TransferHandler
 	}
 
 	/**
-	 * Returns true if the cells have been imported.
+	 * Counts the number of times that the given transferable has been imported.
 	 */
-	protected boolean importCells(mxGraphComponent graphComponent,
-			Object[] cells, mxRectangle bounds)
+	protected void updateImportCount(Transferable t)
+	{
+		if (lastImported != t)
+		{
+			importCount = initialImportCount;
+		}
+		else
+		{
+			importCount++;
+		}
+
+		lastImported = t;
+	}
+
+	/**
+	 * Returns true if the cells have been imported using importCells.
+	 */
+	protected boolean importGraphTransferable(mxGraphComponent graphComponent,
+			mxGraphTransferable gt)
 	{
 		boolean result = false;
 
@@ -327,32 +377,8 @@ public class mxGraphTransferHandler extends TransferHandler
 		{
 			mxGraph graph = graphComponent.getGraph();
 			double scale = graph.getView().getScale();
+			mxRectangle bounds = gt.getBounds();
 			double dx = 0, dy = 0;
-
-			Object target = null;
-
-			if (location==null) {
-				Point pointer = MouseInfo.getPointerInfo().getLocation();
-				Rectangle graphScreenLocation=graphComponent.getScreenArea();
-				Point mousePoint = new Point(pointer.x-graphScreenLocation.x, pointer.y-graphScreenLocation.y);
-				if (graphScreenLocation.contains(pointer)) {
-					setLocation(graphComponent.mouseCoordToGraphMouseCoord(mousePoint));
-				}
-			}
-			
-			// Finds the target cell at the given location and checks if the
-			// target is not already the parent of the first imported cell
-			if (location != null)
-			{
-				target = graph.getDropTarget(cells, location, graphComponent
-						.getCellAt(location.x, location.y));
-
-				if (cells.length > 0
-						&& graph.getModel().getParent(cells[0]) == target)
-				{
-					target = null;
-				}
-			}
 
 			// Computes the offset for the placement of the imported cells
 			if (location != null && bounds != null)
@@ -370,17 +396,6 @@ public class mxGraphTransferHandler extends TransferHandler
 			}
 			else
 			{
-				// Counts the number of times the cells have been imported
-				// via paste and increments the offset accordingly
-				if (lastImported != cells)
-				{
-					importCount = 1;
-				}
-				else
-				{
-					importCount++;
-				}
-
 				int gs = graph.getGridSize();
 
 				dx = importCount * gs;
@@ -393,20 +408,7 @@ public class mxGraphTransferHandler extends TransferHandler
 				dy += offset.y;
 			}
 
-			lastImported = cells;
-			cells = graphComponent.getImportableCells(cells);
-
-			if (graph.isSplitEnabled() && graph.isSplitTarget(target, cells))
-			{
-				graph.splitEdge(target, cells, dx, dy);
-			}
-			else
-			{
-				cells = graphComponent.importCells(cells, dx, dy, target,
-						location);
-				graph.setSelectionCells(cells);
-			}
-
+			importCells(graphComponent, gt, dx, dy);
 			location = null;
 			offset = null;
 			result = true;
@@ -420,6 +422,61 @@ public class mxGraphTransferHandler extends TransferHandler
 		}
 
 		return result;
+	}
+
+	/**
+	 * Returns the drop target for the given transferable and location.
+	 */
+	protected Object getDropTarget(mxGraphComponent graphComponent,
+			mxGraphTransferable gt)
+	{
+		Object[] cells = gt.getCells();
+		Object target = null;
+
+		// Finds the target cell at the given location and checks if the
+		// target is not already the parent of the first imported cell
+		if (location != null)
+		{
+			target = graphComponent.getGraph().getDropTarget(cells, location,
+					graphComponent.getCellAt(location.x, location.y));
+
+			if (cells.length > 0
+					&& graphComponent.getGraph().getModel().getParent(cells[0]) == target)
+			{
+				target = null;
+			}
+		}
+
+		return target;
+	}
+
+	/**
+	 * Gets a drop target using getDropTarget and imports the cells using
+	 * mxGraph.splitEdge or mxGraphComponent.importCells depending on the
+	 * drop target and the return values of mxGraph.isSplitEnabled and
+	 * mxGraph.isSplitTarget. Selects and returns the cells that have been
+	 * imported.
+	 */
+	protected Object[] importCells(mxGraphComponent graphComponent,
+			mxGraphTransferable gt, double dx, double dy)
+	{
+		Object target = getDropTarget(graphComponent, gt);
+		mxGraph graph = graphComponent.getGraph();
+		Object[] cells = gt.getCells();
+
+		cells = graphComponent.getImportableCells(cells);
+
+		if (graph.isSplitEnabled() && graph.isSplitTarget(target, cells))
+		{
+			graph.splitEdge(target, cells, dx, dy);
+		}
+		else
+		{
+			cells = graphComponent.importCells(cells, dx, dy, target, location);
+			graph.setSelectionCells(cells);
+		}
+
+		return cells;
 	}
 
 }

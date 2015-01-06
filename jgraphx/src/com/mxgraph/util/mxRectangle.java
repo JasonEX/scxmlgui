@@ -1,6 +1,5 @@
 /**
- * $Id: mxRectangle.java,v 1.8 2009/11/24 12:00:28 gaudenz Exp $
- * Copyright (c) 2007, Gaudenz Alder
+ * Copyright (c) 2007-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.util;
 
@@ -108,6 +107,22 @@ public class mxRectangle extends mxPoint
 	}
 
 	/**
+	 * Sets this rectangle to the specified values
+	 * 
+	 * @param x the new x-axis position
+	 * @param y the new y-axis position
+	 * @param w the new width of the rectangle
+	 * @param h the new height of the rectangle
+	 */
+	public void setRect(double x, double y, double w, double h)
+	{
+	    this.x = x;
+	    this.y = y;
+	    this.width = w;
+	    this.height = h;
+	}
+
+	/**
 	 * Adds the given rectangle to this rectangle.
 	 */
 	public void add(mxRectangle rect)
@@ -175,6 +190,43 @@ public class mxRectangle extends mxPoint
 	}
 
 	/**
+	 * Returns the point at which the specified point intersects the perimeter 
+	 * of this rectangle or null if there is no intersection.
+	 * 
+	 * @param x0 the x co-ordinate of the first point of the line
+	 * @param y0 the y co-ordinate of the first point of the line
+	 * @param x1 the x co-ordinate of the second point of the line
+	 * @param y1 the y co-ordinate of the second point of the line
+	 * @return the point at which the line intersects this rectangle, or null
+	 * 			if there is no intersection
+	 */
+	public mxPoint intersectLine(double x0, double y0, double x1, double y1)
+	{
+		mxPoint result = null;
+
+		result = mxUtils.intersection(x, y, x + width, y, x0, y0, x1, y1);
+
+		if (result == null)
+		{
+			result = mxUtils.intersection(x + width, y, x + width, y + height,
+					x0, y0, x1, y1);
+		}
+
+		if (result == null)
+		{
+			result = mxUtils.intersection(x + width, y + height, x, y + height,
+					x0, y0, x1, y1);
+		}
+
+		if (result == null)
+		{
+			result = mxUtils.intersection(x, y, x, y + height, x0, y0, x1, y1);
+		}
+
+		return result;
+	}
+
+	/**
 	 * Returns the bounds as a new rectangle.
 	 * 
 	 * @return Returns a new rectangle for the bounds.
@@ -220,8 +272,15 @@ public class mxRectangle extends mxPoint
 		return clone;
 	}
 
-	@Override
-	public String toString() {
-		return "mxRectangle ["+x+" "+y+" "+width+" "+height+"]";
+	/**
+	 * Returns the <code>String</code> representation of this
+	 * <code>mxRectangle</code>.
+	 * @return a <code>String</code> representing this
+	 * <code>mxRectangle</code>.
+	 */
+	public String toString()
+	{
+		return getClass().getName() + "[x=" + x + ",y=" + y + ",w=" + width
+				+ ",h=" + height + "]";
 	}
 }

@@ -1,14 +1,10 @@
 /**
- * $Id: mxUndoableEdit.java,v 1.2 2009/11/24 12:00:28 gaudenz Exp $
- * Copyright (c) 2007, Gaudenz Alder
+ * Copyright (c) 2007-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.util;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-
-import com.mxgraph.model.mxGraphModel.mxChildChange;
 
 /**
  * Implements a 2-dimensional rectangle with double precision coordinates.
@@ -26,7 +22,6 @@ public class mxUndoableEdit
 		 * Undoes or redoes the change depending on its undo state.
 		 */
 		void execute();
-		String getInfoString();
 
 	}
 
@@ -49,8 +44,6 @@ public class mxUndoableEdit
 	 * Specifies the state of the undoable edit.
 	 */
 	protected boolean undone, redone;
-	private boolean transparent;
-	private boolean undoable=true;
 
 	/**
 	 * Constructs a new undoable edit for the given source.
@@ -65,21 +58,15 @@ public class mxUndoableEdit
 	 */
 	public mxUndoableEdit(Object source, boolean significant)
 	{
-		this(source,significant,false);
-	}
-	public mxUndoableEdit(Object source, boolean significant,boolean transparent)
-	{
 		this.source = source;
 		this.significant = significant;
-		this.transparent=transparent;
 	}
 
 	/**
 	 * Hook to notify any listeners of the changes after an undo or redo
 	 * has been carried out. This implementation is empty.
-	 * @param validate set it to false to skip validation from the root of the graph. 
 	 */
-	public void dispatch(boolean validate)
+	public void dispatch()
 	{
 		// empty
 	}
@@ -155,14 +142,13 @@ public class mxUndoableEdit
 	 */
 	public void undo()
 	{
-		if (!undone && !transparent)
+		if (!undone)
 		{
 			int count = changes.size();
 
 			for (int i = count - 1; i >= 0; i--)
 			{
-				mxUndoableChange change = (mxUndoableChange) changes.get(i);
-				//System.out.println(change.getInfoString());
+				mxUndoableChange change = changes.get(i);
 				change.execute();
 			}
 
@@ -170,7 +156,7 @@ public class mxUndoableEdit
 			redone = false;
 		}
 
-		dispatch(true);
+		dispatch();
 	}
 
 	/**
@@ -178,14 +164,13 @@ public class mxUndoableEdit
 	 */
 	public void redo()
 	{
-		if (!redone && !transparent)
+		if (!redone)
 		{
 			int count = changes.size();
 
 			for (int i = 0; i < count; i++)
 			{
-				mxUndoableChange change = (mxUndoableChange) changes.get(i);
-				//System.out.println(change.getInfoString());
+				mxUndoableChange change = changes.get(i);
 				change.execute();
 			}
 
@@ -193,31 +178,7 @@ public class mxUndoableEdit
 			redone = true;
 		}
 
-		dispatch(true);
+		dispatch();
 	}
 
-	public void setTransparent(boolean t) {
-		transparent=t;
-	}
-	public boolean getTransparent() {
-		return transparent;
-	}
-	public void setUndoable(boolean u) {
-		undoable=u;
-	}
-	public boolean getUndoable() {
-		return undoable;
-	}
-
-	public HashSet<Object> getAffectedObjects() {
-		HashSet<Object> modifiedObjects=new HashSet<Object>();
-		for (mxUndoableChange c:getChanges()) {
-			if (c instanceof mxChildChange) {
-				Object o = ((mxChildChange) c).getChild();
-				if (o!=null) modifiedObjects.add(o);
-			}
-		}
-		return modifiedObjects;
-	}
-	
 }

@@ -1,6 +1,5 @@
 /**
- * $Id: mxCodec.java,v 1.28 2010/03/02 12:42:58 gaudenz Exp $
- * Copyright (c) 2006, Gaudenz Alder
+ * Copyright (c) 2012, JGraph Ltd
  */
 package com.mxgraph.io;
 
@@ -14,6 +13,7 @@ import org.w3c.dom.Node;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxCellPath;
 import com.mxgraph.model.mxICell;
+import com.mxgraph.util.mxDomUtils;
 import com.mxgraph.util.mxUtils;
 
 /**
@@ -44,7 +44,7 @@ public class mxCodec
 	 */
 	public mxCodec()
 	{
-		this(mxUtils.createDocument());
+		this(mxDomUtils.createDocument());
 	}
 
 	/**
@@ -57,10 +57,28 @@ public class mxCodec
 	{
 		if (document == null)
 		{
-			document = mxUtils.createDocument();
+			document = mxDomUtils.createDocument();
 		}
 
 		this.document = document;
+	}
+
+	/**
+	 * Returns the owner document of the codec.
+	 * 
+	 * @return Returns the owner document.
+	 */
+	public Document getDocument()
+	{
+		return document;
+	}
+
+	/**
+	 * Sets the owner document of the codec.
+	 */
+	public void setDocument(Document value)
+	{
+		document = value;
 	}
 
 	/**
@@ -85,16 +103,6 @@ public class mxCodec
 	public Map<String, Object> getObjects()
 	{
 		return objects;
-	}
-
-	/**
-	 * Returns the owner document of the codec.
-	 * 
-	 * @return Returns the owner document.
-	 */
-	public Document getDocument()
-	{
-		return document;
 	}
 
 	/**
@@ -411,30 +419,41 @@ public class mxCodec
 
 			if (restoreStructures)
 			{
-				mxICell parent = cell.getParent();
-
-				if (parent != null)
-				{
-					parent.insert(cell);
-				}
-
-				mxICell source = cell.getTerminal(true);
-
-				if (source != null)
-				{
-					source.insertEdge(cell, true);
-				}
-
-				mxICell target = cell.getTerminal(false);
-
-				if (target != null)
-				{
-					target.insertEdge(cell, false);
-				}
+				insertIntoGraph(cell);
 			}
 		}
 
 		return cell;
+	}
+	
+	/**
+	 * Inserts the given cell into its parent and terminal cells.
+	 */
+	public void insertIntoGraph(mxICell cell)
+	{
+		mxICell parent = cell.getParent();
+		mxICell source = cell.getTerminal(true);
+		mxICell target = cell.getTerminal(false);
+
+		// Fixes possible inconsistencies during insert into graph
+		cell.setTerminal(null, false);
+		cell.setTerminal(null, true);
+		cell.setParent(null);
+		
+		if (parent != null)
+		{
+			parent.insert(cell);
+		}
+
+		if (source != null)
+		{
+			source.insertEdge(cell, true);
+		}
+
+		if (target != null)
+		{
+			target.insertEdge(cell, false);
+		}
 	}
 
 	/**

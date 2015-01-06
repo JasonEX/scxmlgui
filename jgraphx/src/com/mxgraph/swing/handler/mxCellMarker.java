@@ -1,6 +1,5 @@
 /**
- * $Id: mxCellMarker.java,v 1.15 2010/01/29 09:07:01 gaudenz Exp $
- * Copyright (c) 2008, Gaudenz Alder
+ * Copyright (c) 2008-2012, JGraph Ltd
  */
 package com.mxgraph.swing.handler;
 
@@ -16,6 +15,7 @@ import java.awt.event.MouseEvent;
 import javax.swing.JComponent;
 
 import com.mxgraph.swing.mxGraphComponent;
+import com.mxgraph.swing.util.mxSwingConstants;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
@@ -33,19 +33,101 @@ import com.mxgraph.view.mxGraphView;
  * mxEvent.MARK fires in mark and unmark to notify the listener of a new cell
  * under the mouse. The <code>state</code> property contains the mxCellState
  * of the respective cell or null if no cell is under the mouse.
+ * 
+ * To create a cell marker which highlights cells "in-place", the following
+ * code can be used:
+ * <code>
+ * mxCellMarker highlighter = new mxCellMarker(graphComponent) {
+ * 
+ *   protected Map<String, Object> lastStyle;
+ *   
+ *   public mxCellState process(MouseEvent e)
+ *   {
+ *     mxCellState state = null;
+ *     
+ *     if (isEnabled())
+ *     {
+ *       state = getState(e);
+ *       boolean isValid = (state != null) ? isValidState(state) : false;
+ *       
+ *       if (!isValid)
+ *       {
+ *         state = null;
+ *       }
+ *       
+ *       highlight(state);
+ *     }
+ *     
+ *     return state;
+ *   }
+ *   
+ *   public void highlight(mxCellState state)
+ *   {
+ *     if (validState != state)
+ *     {
+ *       Rectangle dirty = null;
+ *       
+ *       if (validState != null)
+ *       {
+ *         validState.setStyle(lastStyle);
+ *         dirty = validState.getBoundingBox().getRectangle();
+ *         dirty.grow(4, 4);
+ *       }
+ *       
+ *       if (state != null)
+ *       {
+ *         lastStyle = state.getStyle();
+ *         state.setStyle(new Hashtable<String, Object>(state.getStyle()));
+ *         state.getStyle().put("strokeColor", "#00ff00");
+ *         state.getStyle().put("fontColor", "#00ff00");
+ *         state.getStyle().put("strokeWidth", "3");
+ *          
+ *         Rectangle tmp = state.getBoundingBox().getRectangle();
+ *         
+ *         if (dirty != null)
+ *         {
+ *           dirty.add(tmp);
+ *         }
+ *         else
+ *         {
+ *           dirty = tmp;
+ *         }
+ *         
+ *         dirty.grow(4, 4);
+ *       }
+ *       
+ *       validState = state;
+ *       graphComponent.repaint(dirty);
+ *     }
+ *   }
+ *
+ *   public void reset()
+ *   {
+ *     highlight(null);
+ *   }
+ *
+ *   public void paint(Graphics g)
+ *   {
+ *     // do nothing
+ *   }
+ * };
+ *  
+ * graphComponent.getConnectionHandler().setMarker(highlighter);
+ * </code>
  */
 public class mxCellMarker extends JComponent
 {
-	/**
-	 * Specifies if the highlights should appear on top of everything
-	 * else in the overlay pane. Default is false.
-	 */
-	public static boolean KEEP_ON_TOP = false;
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 614473367053597572L;
+
+	/**
+	 * Specifies if the highlights should appear on top of everything
+	 * else in the overlay pane. Default is false.
+	 */
+	public static boolean KEEP_ON_TOP = false;
 
 	/**
 	 * Specifies the default stroke for the marker.
@@ -113,7 +195,7 @@ public class mxCellMarker extends JComponent
 	 */
 	public mxCellMarker(mxGraphComponent graphComponent)
 	{
-		this(graphComponent, mxConstants.DEFAULT_VALID_COLOR);
+		this(graphComponent, mxSwingConstants.DEFAULT_VALID_COLOR);
 	}
 
 	/**
@@ -121,7 +203,7 @@ public class mxCellMarker extends JComponent
 	 */
 	public mxCellMarker(mxGraphComponent graphComponent, Color validColor)
 	{
-		this(graphComponent, validColor, mxConstants.DEFAULT_INVALID_COLOR);
+		this(graphComponent, validColor, mxSwingConstants.DEFAULT_INVALID_COLOR);
 	}
 
 	/**
@@ -214,6 +296,38 @@ public class mxCellMarker extends JComponent
 	}
 
 	/**
+	 * Sets the color used for valid highlights.
+	 */
+	public void setValidColor(Color value)
+	{
+		validColor = value;
+	}
+
+	/**
+	 * Returns the color used for valid highlights.
+	 */
+	public Color getValidColor()
+	{
+		return validColor;
+	}
+
+	/**
+	 * Sets the color used for invalid highlights.
+	 */
+	public void setInvalidColor(Color value)
+	{
+		invalidColor = value;
+	}
+
+	/**
+	 * Returns the color used for invalid highlights.
+	 */
+	public Color getInvalidColor()
+	{
+		return invalidColor;
+	}
+
+	/**
 	 * Returns true if validState is not null.
 	 */
 	public boolean hasValidState()
@@ -227,6 +341,30 @@ public class mxCellMarker extends JComponent
 	public mxCellState getValidState()
 	{
 		return validState;
+	}
+
+	/**
+	 * Sets the current color. 
+	 */
+	public void setCurrentColor(Color value)
+	{
+		currentColor = value;
+	}
+
+	/**
+	 * Returns the current color.
+	 */
+	public Color getCurrentColor()
+	{
+		return currentColor;
+	}
+
+	/**
+	 * Sets the marked state. 
+	 */
+	public void setMarkedState(mxCellState value)
+	{
+		markedState = value;
 	}
 
 	/**
@@ -258,10 +396,37 @@ public class mxCellMarker extends JComponent
 	 * true, then the state is stored in validState regardless of the marker
 	 * color. The state is returned regardless of the marker color and
 	 * valid state. 
-	 * @param isValid 
 	 */
-	public void process(mxCellState state,Color color, boolean isValid) {
-		if (isValid)
+	public mxCellState process(MouseEvent e)
+	{
+		mxCellState state = null;
+
+		if (isEnabled())
+		{
+			state = getState(e);
+			boolean valid = (state != null) ? isValidState(state) : false;
+			Color color = getMarkerColor(e, state, valid);
+			
+			highlight(state, color, valid);
+		}
+
+		return state;
+	}
+	
+	/**
+	 * 
+	 */
+	public void highlight(mxCellState state, Color color)
+	{
+		highlight(state, color, true);
+	}
+	
+	/**
+	 * 
+	 */
+	public void highlight(mxCellState state, Color color, boolean valid)
+	{
+		if (valid)
 		{
 			validState = state;
 		}
@@ -286,20 +451,6 @@ public class mxCellMarker extends JComponent
 			}
 		}
 	}
-	public mxCellState process(MouseEvent e)
-	{
-		mxCellState state = null;
-
-		if (isEnabled())
-		{
-			state = getState(e);
-			boolean isValid = (state != null) ? isValidState(state) : false;
-			Color color = getMarkerColor(e, state, isValid);
-			process(state,color,isValid);
-		}
-
-		return state;
-	}
 
 	/**
 	 * Marks the markedState and fires a mxEvent.MARK event.
@@ -317,7 +468,7 @@ public class mxCellMarker extends JComponent
 			if (getParent() == null)
 			{
 				setVisible(true);
-				
+
 				if (KEEP_ON_TOP)
 				{
 					graphComponent.getGraphControl().add(this, 0);
@@ -361,7 +512,7 @@ public class mxCellMarker extends JComponent
 	 * Returns the valid- or invalidColor depending on the value of isValid.
 	 * The given state is ignored by this implementation.
 	 */
-	public Color getMarkerColor(MouseEvent e, mxCellState state,
+	protected Color getMarkerColor(MouseEvent e, mxCellState state,
 			boolean isValid)
 	{
 		return (isValid) ? validColor : invalidColor;

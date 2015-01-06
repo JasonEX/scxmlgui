@@ -1,6 +1,5 @@
 /**
- * $Id: mxVertexHandler.java,v 1.10 2010/01/29 09:07:01 gaudenz Exp $
- * Copyright (c) 2008, Gaudenz Alder
+ * Copyright (c) 2008-2012, JGraph Ltd
  */
 package com.mxgraph.swing.handler;
 
@@ -17,6 +16,7 @@ import javax.swing.JPanel;
 
 import com.mxgraph.model.mxGeometry;
 import com.mxgraph.swing.mxGraphComponent;
+import com.mxgraph.swing.util.mxSwingConstants;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
@@ -115,7 +115,7 @@ public class mxVertexHandler extends mxCellHandler
 	protected JComponent createPreview()
 	{
 		JPanel preview = new JPanel();
-		preview.setBorder(mxConstants.PREVIEW_BORDER);
+		preview.setBorder(mxSwingConstants.PREVIEW_BORDER);
 		preview.setOpaque(false);
 		preview.setVisible(false);
 
@@ -129,8 +129,6 @@ public class mxVertexHandler extends mxCellHandler
 	{
 		if (!e.isConsumed() && first != null)
 		{
-			//System.out.println("mouse dragged in mxVertexHandler");
-
 			gridEnabledEvent = graphComponent.isGridEnabledEvent(e);
 			constrainedEvent = graphComponent.isConstrainedEvent(e);
 
@@ -387,21 +385,21 @@ public class mxVertexHandler extends mxCellHandler
 
 		return new mxRectangle(left, top, width, height);
 	}
-	
+
 	/**
 	 * 
 	 */
-	protected Color getSelectionColor()
+	public Color getSelectionColor()
 	{
-		return mxConstants.VERTEX_SELECTION_COLOR;
+		return mxSwingConstants.VERTEX_SELECTION_COLOR;
 	}
-	
+
 	/**
 	 * 
 	 */
-	protected Stroke getSelectionStroke()
+	public Stroke getSelectionStroke()
 	{
-		return mxConstants.VERTEX_SELECTION_STROKE;
+		return mxSwingConstants.VERTEX_SELECTION_STROKE;
 	}
 
 	/**
@@ -410,13 +408,17 @@ public class mxVertexHandler extends mxCellHandler
 	public void paint(Graphics g)
 	{
 		Rectangle bounds = getState().getRectangle();
-		Graphics2D g2 = (Graphics2D) g;
-		
-		Stroke stroke = g2.getStroke();
-		g2.setStroke(getSelectionStroke());
-		g.setColor(getSelectionColor());
-		g.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
-		g2.setStroke(stroke);
+
+		if (g.hitClip(bounds.x, bounds.y, bounds.width, bounds.height))
+		{
+			Graphics2D g2 = (Graphics2D) g;
+
+			Stroke stroke = g2.getStroke();
+			g2.setStroke(getSelectionStroke());
+			g.setColor(getSelectionColor());
+			g.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+			g2.setStroke(stroke);
+		}
 
 		super.paint(g);
 	}

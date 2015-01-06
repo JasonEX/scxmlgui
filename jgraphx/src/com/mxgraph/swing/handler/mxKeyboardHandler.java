@@ -1,5 +1,4 @@
 /**
- * $Id: mxKeyboardHandler.java,v 1.3 2009/02/22 11:01:18 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing.handler;
@@ -79,7 +78,7 @@ public class mxKeyboardHandler
 			map.put(KeyStroke.getKeyStroke("control C"), "copy");
 			map.put(KeyStroke.getKeyStroke("COPY"), "copy");
 			map.put(KeyStroke.getKeyStroke("control V"), "paste");
-			map.put(KeyStroke.getKeyStroke("PASTE"), "copy");
+			map.put(KeyStroke.getKeyStroke("PASTE"), "paste");
 			map.put(KeyStroke.getKeyStroke("control G"), "group");
 			map.put(KeyStroke.getKeyStroke("control U"), "ungroup");
 			map.put(KeyStroke.getKeyStroke("control ADD"), "zoomIn");

@@ -1,5 +1,4 @@
 /**
- * $Id: mxEventSource.java,v 1.11 2010/01/29 10:16:30 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.util;
@@ -128,7 +127,7 @@ public class mxEventSource
 	{
 		if (eventListeners != null)
 		{
-			for (int i = eventListeners.size() - 2; i > 1; i -= 2)
+			for (int i = eventListeners.size() - 2; i > -1; i -= 2)
 			{
 				if (eventListeners.get(i + 1) == listener
 						&& (eventName == null || String.valueOf(
@@ -148,8 +147,6 @@ public class mxEventSource
 	 */
 	public void fireEvent(mxEventObject evt)
 	{
-		//System.out.println("firing event ("+this.getClass().getSimpleName()+")"+evt.name+" "+evt.properties);
-		//System.out.println(Arrays.asList(Thread.currentThread().getStackTrace()));
 		fireEvent(evt, null);
 	}
 

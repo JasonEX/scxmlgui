@@ -1,5 +1,4 @@
 /**
- * $Id: mxElbowEdgeHandler.java,v 1.10 2010/01/29 09:07:01 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing.handler;
@@ -95,7 +94,7 @@ public class mxElbowEdgeHandler extends mxEdgeHandler
 		else
 		{
 			mxGraphView view = graphComponent.getGraph().getView();
-			pt = view.transformControlPoint(state, (mxPoint) points.get(0))
+			pt = view.transformControlPoint(state, points.get(0))
 					.getPoint();
 		}
 

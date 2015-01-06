@@ -1,3 +1,6 @@
+/**
+ * Copyright (c) 2007-2012, JGraph Ltd
+ */
 package com.mxgraph.util;
 
 import java.awt.Color;
@@ -44,66 +47,62 @@ public class mxCellRenderer
 			cells = new Object[] { graph.getModel().getRoot() };
 		}
 
-		if (cells != null)
+		// Gets the current state of the view
+		mxGraphView view = graph.getView();
+
+		// Keeps the existing translation as the cells might
+		// be aligned to the grid in a different way in a graph
+		// that has a translation other than zero
+		boolean eventsEnabled = view.isEventsEnabled();
+
+		// Disables firing of scale events so that there is no
+		// repaint or update of the original graph
+		view.setEventsEnabled(false);
+
+		// Uses the view to create temporary cell states for each cell
+		mxTemporaryCellStates temp = new mxTemporaryCellStates(view, scale,
+				cells);
+
+		try
 		{
-			// Gets the current state of the view
-			mxGraphView view = graph.getView();
-
-			// Keeps the existing translation as the cells might
-			// be aligned to the grid in a different way in a graph
-			// that has a translation other than zero
-			boolean eventsEnabled = view.isEventsEnabled();
-
-			// Disables firing of scale events so that there is no
-			// repaint or update of the original graph
-			view.setEventsEnabled(false);
-
-			// Uses the view to create temporary cell states for each cell
-			mxTemporaryCellStates temp = new mxTemporaryCellStates(view,
-					scale, cells);
-
-			try
+			if (clip == null)
 			{
-				if (clip == null)
-				{
-					clip = graph.getPaintBounds(cells);
-				}
+				clip = graph.getPaintBounds(cells);
+			}
 
-				if (clip != null && clip.getWidth() > 0 && clip.getHeight() > 0)
-				{
-					Rectangle rect = clip.getRectangle();
-					canvas = factory.createCanvas(rect.width + 1,
-							rect.height + 1);
+			if (clip != null && clip.getWidth() > 0 && clip.getHeight() > 0)
+			{
+				Rectangle rect = clip.getRectangle();
+				canvas = factory.createCanvas(rect.width + 1, rect.height + 1);
 
-					if (canvas != null)
+				if (canvas != null)
+				{
+					double previousScale = canvas.getScale();
+					Point previousTranslate = canvas.getTranslate();
+
+					try
 					{
-						double previousScale = canvas.getScale();
-						Point previousTranslate = canvas.getTranslate();
+						canvas.setTranslate(-rect.x, -rect.y);
+						canvas.setScale(view.getScale());
 
-						try
+						for (int i = 0; i < cells.length; i++)
 						{
-							canvas.setTranslate(-rect.x, -rect.y);
-							canvas.setScale(view.getScale());
-
-							for (int i = 0; i < cells.length; i++)
-							{
-								graph.drawCell(canvas, cells[i]);
-							}
+							graph.drawCell(canvas, cells[i]);
 						}
-						finally
-						{
-							canvas.setScale(previousScale);
-							canvas.setTranslate(previousTranslate.x,
-									previousTranslate.y);
-						}
+					}
+					finally
+					{
+						canvas.setScale(previousScale);
+						canvas.setTranslate(previousTranslate.x,
+								previousTranslate.y);
 					}
 				}
 			}
-			finally
-			{
-				temp.destroy();
-				view.setEventsEnabled(eventsEnabled);
-			}
+		}
+		finally
+		{
+			temp.destroy();
+			view.setEventsEnabled(eventsEnabled);
 		}
 
 		return canvas;
@@ -153,7 +152,7 @@ public class mxCellRenderer
 				{
 					public mxICanvas createCanvas(int width, int height)
 					{
-						return new mxHtmlCanvas(mxUtils.createHtmlDocument());
+						return new mxHtmlCanvas(mxDomUtils.createHtmlDocument());
 					}
 
 				});
@@ -172,7 +171,7 @@ public class mxCellRenderer
 				{
 					public mxICanvas createCanvas(int width, int height)
 					{
-						return new mxSvgCanvas(mxUtils.createSvgDocument(width,
+						return new mxSvgCanvas(mxDomUtils.createSvgDocument(width,
 								height));
 					}
 
@@ -192,7 +191,7 @@ public class mxCellRenderer
 				{
 					public mxICanvas createCanvas(int width, int height)
 					{
-						return new mxVmlCanvas(mxUtils.createVmlDocument());
+						return new mxVmlCanvas(mxDomUtils.createVmlDocument());
 					}
 
 				});

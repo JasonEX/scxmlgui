@@ -1,5 +1,4 @@
 /**
- * $Id: mxCodecRegistry.java,v 1.18 2010/02/23 13:21:00 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.io;
@@ -10,11 +9,16 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import com.mxgraph.model.mxGraphModel.mxCollapseChange;
+import com.mxgraph.model.mxGraphModel.mxGeometryChange;
+import com.mxgraph.model.mxGraphModel.mxStyleChange;
+import com.mxgraph.model.mxGraphModel.mxValueChange;
+import com.mxgraph.model.mxGraphModel.mxVisibleChange;
+
 /**
  * Singleton class that acts as a global registry for codecs. See
  * {@link mxCodec} for an example.
  */
-@SuppressWarnings("rawtypes")
 public class mxCodecRegistry
 {
 
@@ -22,6 +26,11 @@ public class mxCodecRegistry
 	 * Maps from constructor names to codecs.
 	 */
 	protected static Hashtable<String, mxObjectCodec> codecs = new Hashtable<String, mxObjectCodec>();
+
+	/**
+	 * Maps from classnames to codecnames.
+	 */
+	protected static Hashtable<String, String> aliases = new Hashtable<String, String>();
 
 	/**
 	 * Holds the list of known packages. Packages are used to prefix short
@@ -43,24 +52,46 @@ public class mxCodecRegistry
 		register(new mxModelCodec());
 		register(new mxCellCodec());
 		register(new mxStylesheetCodec());
+
+		register(new mxRootChangeCodec());
+		register(new mxChildChangeCodec());
+		register(new mxTerminalChangeCodec());
+		register(new mxGenericChangeCodec(new mxValueChange(), "value"));
+		register(new mxGenericChangeCodec(new mxStyleChange(), "style"));
+		register(new mxGenericChangeCodec(new mxGeometryChange(), "geometry"));
+		register(new mxGenericChangeCodec(new mxCollapseChange(), "collapsed"));
+		register(new mxGenericChangeCodec(new mxVisibleChange(), "visible"));
 	}
 
 	/**
 	 * Registers a new codec and associates the name of the template constructor
-	 * in the codec with the codec object.
-	 * 
-	 * @param codec Codec to be registered under the name returned by
-	 * {@link #getName(Object)} for the class of the codec's template.
+	 * in the codec with the codec object. Automatically creates an alias if the
+	 * codename and the classname are not equal.
 	 */
 	public static mxObjectCodec register(mxObjectCodec codec)
 	{
 		if (codec != null)
 		{
-			String name = getName(codec.getTemplate());
+			String name = codec.getName();
 			codecs.put(name, codec);
+
+			String classname = getName(codec.getTemplate());
+
+			if (!classname.equals(name))
+			{
+				addAlias(classname, name);
+			}
 		}
 
 		return codec;
+	}
+
+	/**
+	 * Adds an alias for mapping a classname to a codecname.
+	 */
+	public static void addAlias(String classname, String codecname)
+	{
+		aliases.put(classname, codecname);
 	}
 
 	/**
@@ -71,6 +102,13 @@ public class mxCodecRegistry
 	 */
 	public static mxObjectCodec getCodec(String name)
 	{
+		String tmp = aliases.get(name);
+
+		if (tmp != null)
+		{
+			name = tmp;
+		}
+
 		mxObjectCodec codec = codecs.get(name);
 
 		// Registers a new default codec for the given name
@@ -114,24 +152,26 @@ public class mxCodecRegistry
 	 */
 	public static Object getInstanceForName(String name)
 	{
-		Class clazz = getClassForName(name);
+		Class<?> clazz = getClassForName(name);
 
 		if (clazz != null)
 		{
-			try
+			if (clazz.isEnum())
 			{
-				return clazz.newInstance();
+				// For an enum, use the first constant as the default instance
+				return clazz.getEnumConstants()[0];
 			}
-			catch (Exception e)
+			else
 			{
-				// ignore
+				try
+				{
+					return clazz.newInstance();
+				}
+				catch (Exception e)
+				{
+					// ignore
+				}
 			}
-		}
-		
-		// For an enum, use the first constant as the default instance
-		if (clazz.isEnum())
-		{
-			return clazz.getEnumConstants()[0];
 		}
 
 		return null;
@@ -143,7 +183,7 @@ public class mxCodecRegistry
 	 * @param name
 	 * @return Returns the class for the given name.
 	 */
-	public static Class getClassForName(String name)
+	public static Class<?> getClassForName(String name)
 	{
 		try
 		{
@@ -184,8 +224,8 @@ public class mxCodecRegistry
 	 */
 	public static String getName(Object instance)
 	{
-		Class type = instance.getClass();
-		
+		Class<? extends Object> type = instance.getClass();
+
 		if (type.isArray() || Collection.class.isAssignableFrom(type)
 				|| Map.class.isAssignableFrom(type))
 		{

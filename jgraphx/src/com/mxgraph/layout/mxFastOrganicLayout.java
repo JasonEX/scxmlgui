@@ -1,5 +1,4 @@
 /**
- * $Id: mxFastOrganicLayout.java,v 1.27 2010/02/11 11:11:16 david Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.layout;
@@ -60,6 +59,12 @@ public class mxFastOrganicLayout extends mxGraphLayout
 	protected double minDistanceLimitSquared = 0;
 
 	/**
+	 * The maximum distance between vertices, beyond which their
+	 * repulsion no longer has an effect
+	 */
+	protected double maxDistanceLimit = 500;
+
+	/**
 	 * Start value of temperature. Default is 200.
 	 */
 	protected double initialTemp = 200;
@@ -72,12 +77,12 @@ public class mxFastOrganicLayout extends mxGraphLayout
 	/**
 	 * Total number of iterations to run the layout though.
 	 */
-	protected int maxIterations = 0;
+	protected double maxIterations = 0;
 
 	/**
 	 * Current iteration count.
 	 */
-	protected int iteration = 0;
+	protected double iteration = 0;
 
 	/**
 	 * An array of all vertices to be laid out.
@@ -205,7 +210,7 @@ public class mxFastOrganicLayout extends mxGraphLayout
 	/**
 	 * 
 	 */
-	public int getMaxIterations()
+	public double getMaxIterations()
 	{
 		return maxIterations;
 	}
@@ -214,7 +219,7 @@ public class mxFastOrganicLayout extends mxGraphLayout
 	 * 
 	 * @param value
 	 */
-	public void setMaxIterations(int value)
+	public void setMaxIterations(double value)
 	{
 		maxIterations = value;
 	}
@@ -251,6 +256,22 @@ public class mxFastOrganicLayout extends mxGraphLayout
 	public void setMinDistanceLimit(double value)
 	{
 		minDistanceLimit = value;
+	}
+
+	/**
+	 * @return the maxDistanceLimit
+	 */
+	public double getMaxDistanceLimit()
+	{
+		return maxDistanceLimit;
+	}
+
+	/**
+	 * @param maxDistanceLimit the maxDistanceLimit to set
+	 */
+	public void setMaxDistanceLimit(double maxDistanceLimit)
+	{
+		this.maxDistanceLimit = maxDistanceLimit;
 	}
 
 	/**
@@ -417,7 +438,7 @@ public class mxFastOrganicLayout extends mxGraphLayout
 			// If max number of iterations has not been set, guess it
 			if (maxIterations == 0)
 			{
-				maxIterations = (int) (20 * Math.sqrt(n));
+				maxIterations = 20.0 * Math.sqrt(n);
 			}
 
 			// Main iteration loop
@@ -624,6 +645,12 @@ public class mxFastOrganicLayout extends mxGraphLayout
 
 					double deltaLengthWithRadius = deltaLength - radius[i]
 							- radius[j];
+
+					if (deltaLengthWithRadius > maxDistanceLimit)
+					{
+						// Ignore vertices too far apart
+						continue;
+					}
 
 					if (deltaLengthWithRadius < minDistanceLimit)
 					{

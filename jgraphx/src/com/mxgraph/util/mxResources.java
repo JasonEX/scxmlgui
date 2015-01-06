@@ -1,3 +1,6 @@
+/**
+ * Copyright (c) 2010, Gaudenz Alder
+ */
 package com.mxgraph.util;
 
 import java.util.Iterator;
@@ -37,7 +40,8 @@ public class mxResources
 	}
 
 	/**
-	 * Adds a resource bundle.
+	 * Adds a resource bundle. This may throw a MissingResourceException that
+	 * should be handled in the calling code.
 	 * 
 	 * @param basename
 	 *            The basename of the resource bundle to add.
@@ -46,9 +50,10 @@ public class mxResources
 	{
 		bundles.addFirst(PropertyResourceBundle.getBundle(basename));
 	}
-
+	
 	/**
-	 * Adds a resource bundle.
+	 * Adds a resource bundle. This may throw a MissingResourceException that
+	 * should be handled in the calling code.
 	 * 
 	 * @param basename
 	 *            The basename of the resource bundle to add.

@@ -61,34 +61,30 @@ public class mxTemporaryCellStates
 
 		if (cells != null)
 		{
-			// Creates virtual parent state for validation
-			mxCellState state = view.createState(new mxCell());
+			mxRectangle bbox = null;
 
 			// Validates the vertices and edges without adding them to
 			// the model so that the original cells are not modified
 			for (int i = 0; i < cells.length; i++)
 			{
-				view.validateBounds(state, cells[i]);
+				mxRectangle bounds = view.getBoundingBox(view.validateCellState(view.validateCell(cells[i])));
+				
+				if (bbox == null)
+				{
+					bbox = bounds;
+				}
+				else
+				{
+					bbox.add(bounds);
+				}
 			}
-
-			double minX = 0;
-			double minY = 0;
-			double maxX = 0;
-			double maxY = 0;
-
-			for (int i = 0; i < cells.length; i++)
+			
+			if (bbox == null)
 			{
-				mxRectangle bounds = view.validatePoints(state, cells[i]);
-
-				// TODO: Fix initial 0 for minX, minY (should be null)
-				minX = Math.min(minX, bounds.getX());
-				minY = Math.min(minY, bounds.getY());
-				maxX = Math.max(maxX, bounds.getX() + bounds.getWidth());
-				maxY = Math.max(maxY, bounds.getY() + bounds.getHeight());
+				bbox = new mxRectangle();
 			}
 
-			view.setGraphBounds(new mxRectangle(minX, minY, maxX - minX, maxY
-					- minY));
+			view.setGraphBounds(bbox);
 		}
 	}
 

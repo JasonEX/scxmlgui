@@ -49,7 +49,7 @@ public class mxMinimumCycleRemover implements mxHierarchicalLayoutStage
 		mxGraphHierarchyModel model = layout.getModel();
 		final Set<mxGraphHierarchyNode> seenNodes = new HashSet<mxGraphHierarchyNode>();
 		final Set<mxGraphHierarchyNode> unseenNodes = new HashSet<mxGraphHierarchyNode>(
-				model.getVertexMapping().values());
+				model.getVertexMapper().values());
 
 		// Perform a dfs through the internal model. If a cycle is found,
 		// reverse it.
@@ -63,8 +63,8 @@ public class mxMinimumCycleRemover implements mxHierarchicalLayoutStage
 			for (int i = 0; i < modelRoots.length; i++)
 			{
 				Object node = modelRoots[i];
-				mxGraphHierarchyNode internalNode = (mxGraphHierarchyNode) model
-						.getVertexMapping().get(node);
+				mxGraphHierarchyNode internalNode = model
+						.getVertexMapper().get(node);
 				rootsArray[i] = internalNode;
 			}
 		}
@@ -78,8 +78,8 @@ public class mxMinimumCycleRemover implements mxHierarchicalLayoutStage
 				// Check if the cell is in it's own ancestor list, if so
 				// invert the connecting edge and reverse the target/source
 				// relationship to that edge in the parent and the cell
-				if (((mxGraphHierarchyNode) cell)
-						.isAncestor((mxGraphHierarchyNode) parent))
+				if ((cell)
+						.isAncestor(parent))
 				{
 					connectingEdge.invert();
 					parent.connectsAsSource.remove(connectingEdge);
@@ -107,7 +107,7 @@ public class mxMinimumCycleRemover implements mxHierarchicalLayoutStage
 
 		// Pick a random cell and dfs from it
 		mxGraphHierarchyNode[] unseenNodesArray = new mxGraphHierarchyNode[1];
-		unseenNodesArray=unseenNodes.toArray(unseenNodesArray);
+		unseenNodes.toArray(unseenNodesArray);
 		
 		model.visit(new mxGraphHierarchyModel.CellVisitor()
 		{
@@ -118,8 +118,8 @@ public class mxMinimumCycleRemover implements mxHierarchicalLayoutStage
 				// Check if the cell is in it's own ancestor list, if so
 				// invert the connecting edge and reverse the target/source
 				// relationship to that edge in the parent and the cell
-				if (((mxGraphHierarchyNode) cell)
-						.isAncestor((mxGraphHierarchyNode) parent))
+				if ((cell)
+						.isAncestor(parent))
 				{
 					connectingEdge.invert();
 					parent.connectsAsSource.remove(connectingEdge);

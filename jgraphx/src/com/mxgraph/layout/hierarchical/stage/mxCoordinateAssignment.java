@@ -1,12 +1,5 @@
-/*
- * Copyright (c) 2005, David Benson
- *
- * All rights reserved.
- *
- * This file is licensed under the JGraph software license, a copy of which
- * will have been provided to you in the file LICENSE at the root of your
- * installation directory. If you are unable to locate this file please
- * contact JGraph sales for another copy.
+/**
+ * Copyright (c) 2005-2012, JGraph Ltd
  */
 
 package com.mxgraph.layout.hierarchical.stage;
@@ -15,6 +8,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -35,15 +29,21 @@ import com.mxgraph.layout.hierarchical.model.mxGraphHierarchyNode;
 import com.mxgraph.layout.hierarchical.model.mxGraphHierarchyRank;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
+import com.mxgraph.util.mxUtils;
 import com.mxgraph.view.mxGraph;
 
 /**
  * Sets the horizontal locations of node and edge dummy nodes on each layer.
- * Uses median down and up weighings as well heuristic to straighten edges as
+ * Uses median down and up weighings as well as heuristics to straighten edges as
  * far as possible.
  */
 public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 {
+
+	enum HierarchicalEdgeStyle
+	{
+		ORTHOGONAL, POLYLINE, STRAIGHT
+	}
 
 	/**
 	 * Reference to the enclosing layout algorithm
@@ -63,12 +63,49 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 	/**
 	 * The distance between each parallel edge on each ranks for long edges
 	 */
-	protected double parallelEdgeSpacing = 10.0;
+	protected double parallelEdgeSpacing = 4.0;
+
+	/**
+	 * The buffer on either side of a vertex where edges must not connect.
+	 */
+	protected double vertexConnectionBuffer = 0.0;
 
 	/**
 	 * The number of heuristic iterations to run
 	 */
 	protected int maxIterations = 8;
+
+	/**
+	 * The preferred horizontal distance between edges exiting a vertex
+	 */
+	protected int prefHozEdgeSep = 5;
+
+	/**
+	 * The preferred vertical offset between edges exiting a vertex
+	 */
+	protected int prefVertEdgeOff = 2;
+
+	/**
+	 * The minimum distance for an edge jetty from a vertex
+	 */
+	protected int minEdgeJetty = 12;
+
+	/**
+	 * The size of the vertical buffer in the center of inter-rank channels
+	 * where edge control points should not be placed
+	 */
+	protected int channelBuffer = 4;
+
+	/**
+	 * Map of internal edges and (x,y) pair of positions of the start and end jetty
+	 * for that edge where it connects to the source and target vertices.
+	 * Note this should technically be a WeakHashMap, but since JS does not
+	 * have an equivalent, housekeeping must be performed before using.
+	 * i.e. check all edges are still in the model and clear the values.
+	 * Note that the y co-ord is the offset of the jetty, not the
+	 * absolute point
+	 */
+	protected Map<mxGraphHierarchyEdge, double[]> jettyPositions = new HashMap<mxGraphHierarchyEdge, double[]>();
 
 	/**
 	 * The position of the root ( start ) node(s) relative to the rest of the
@@ -95,6 +132,16 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 	 * The rank that has the widest x position
 	 */
 	protected int widestRank;
+
+	/**
+	 * Internal cache of top-most values of Y for each rank
+	 */
+	protected double[] rankTopY;
+
+	/**
+	 * Internal cache of bottom-most value of Y for each rank
+	 */
+	protected double[] rankBottomY;
 
 	/**
 	 * The X-coordinate of the edge of the widest rank
@@ -124,9 +171,19 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 	protected boolean disableEdgeStyle = true;
 
 	/**
+	 * The style to apply between cell layers to edge segments
+	 */
+	protected HierarchicalEdgeStyle edgeStyle = HierarchicalEdgeStyle.POLYLINE;
+
+	/**
 	 * A store of connections to the layer above for speed
 	 */
 	protected mxGraphAbstractHierarchyCell[][] nextLayerConnectedCache;
+
+	/**
+	 * Padding added to resized parents
+	 */
+	protected int groupPadding = 10;
 
 	/**
 	 * A store of connections to the layer below for speed
@@ -162,6 +219,34 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 		setLoggerLevel(Level.OFF);
 	}
 
+	/**
+	 * Utility method to display the x co-ords
+	 */
+	public void printStatus()
+	{
+		mxGraphHierarchyModel model = layout.getModel();
+
+		System.out.println("======Coord assignment debug=======");
+
+		for (int j = 0; j < model.ranks.size(); j++)
+		{
+			System.out.print("Rank " + j + " : " );
+			mxGraphHierarchyRank rank = model.ranks
+					.get(new Integer(j));
+			Iterator<mxGraphAbstractHierarchyCell> iter = rank
+					.iterator();
+
+			while (iter.hasNext())
+			{
+				mxGraphAbstractHierarchyCell cell = iter.next();
+				System.out.print(cell.getX(j) + "  ");
+			}
+			System.out.println();
+		}
+		
+		System.out.println("====================================");
+	}
+	
 	/**
 	 * A basic horizontal coordinate assignment algorithm
 	 */
@@ -204,8 +289,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 						while (iter.hasNext())
 						{
-							mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
-									.next();
+							mxGraphAbstractHierarchyCell cell = iter.next();
 							cell.setX(j, cell.getGeneralPurposeVariable(j));
 						}
 					}
@@ -224,13 +308,14 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 						while (iter.hasNext())
 						{
-							mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
-									.next();
-							cell.setGeneralPurposeVariable(j, (int) cell
-									.getX(j));
+							mxGraphAbstractHierarchyCell cell = iter.next();
+							cell.setGeneralPurposeVariable(j,
+									(int) cell.getX(j));
 						}
 					}
 				}
+
+				minPath(model);
 
 				currentXDelta = 0;
 			}
@@ -252,19 +337,19 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 		// Need to be able to map from cell to cellWrapper
 		Map<mxGraphAbstractHierarchyCell, WeightedCellSorter> map = new Hashtable<mxGraphAbstractHierarchyCell, WeightedCellSorter>();
-		Object[][] rank = new Object[model.maxRank + 1][];
+		mxGraphAbstractHierarchyCell[][] rank = new mxGraphAbstractHierarchyCell[model.maxRank + 1][];
 
 		for (int i = 0; i <= model.maxRank; i++)
 		{
-			mxGraphHierarchyRank rankSet = (mxGraphHierarchyRank) model.ranks
-					.get(new Integer(i));
-			rank[i] = rankSet.toArray();
+			mxGraphHierarchyRank rankSet = model.ranks.get(new Integer(i));
+			rank[i] = rankSet.toArray(new mxGraphAbstractHierarchyCell[rankSet
+					.size()]);
 
 			for (int j = 0; j < rank[i].length; j++)
 			{
 				// Use the weight to store the rank and visited to store whether
 				// or not the cell is in the list
-				mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) rank[i][j];
+				mxGraphAbstractHierarchyCell cell = rank[i][j];
 				WeightedCellSorter cellWrapper = new WeightedCellSorter(cell, i);
 				cellWrapper.rankIndex = j;
 				cellWrapper.visited = true;
@@ -283,8 +368,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 		while (!nodeList.isEmpty() && count <= maxTries)
 		{
-			WeightedCellSorter cellWrapper = (WeightedCellSorter) nodeList
-					.getFirst();
+			WeightedCellSorter cellWrapper = nodeList.getFirst();
 			mxGraphAbstractHierarchyCell cell = cellWrapper.cell;
 
 			int rankValue = cellWrapper.weightedValue;
@@ -327,7 +411,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 				}
 				else
 				{
-					mxGraphAbstractHierarchyCell leftCell = (mxGraphAbstractHierarchyCell) rank[rankValue][rankIndex - 1];
+					mxGraphAbstractHierarchyCell leftCell = rank[rankValue][rankIndex - 1];
 					int leftLimit = leftCell
 							.getGeneralPurposeVariable(rankValue);
 					leftLimit = leftLimit + (int) leftCell.width / 2
@@ -340,8 +424,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 						positionChanged = true;
 					}
 					else if (leftLimit < cell
-							.getGeneralPurposeVariable(rankValue)
-							- tolerance)
+							.getGeneralPurposeVariable(rankValue) - tolerance)
 					{
 						cell.setGeneralPurposeVariable(rankValue, leftLimit);
 						positionChanged = true;
@@ -359,7 +442,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 				}
 				else
 				{
-					mxGraphAbstractHierarchyCell rightCell = (mxGraphAbstractHierarchyCell) rank[rankValue][rankIndex + 1];
+					mxGraphAbstractHierarchyCell rightCell = rank[rankValue][rankIndex + 1];
 					int rightLimit = rightCell
 							.getGeneralPurposeVariable(rankValue);
 					rightLimit = rightLimit - (int) rightCell.width / 2
@@ -372,8 +455,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 						positionChanged = true;
 					}
 					else if (rightLimit > cell
-							.getGeneralPurposeVariable(rankValue)
-							+ tolerance)
+							.getGeneralPurposeVariable(rankValue) + tolerance)
 					{
 						cell.setGeneralPurposeVariable(rankValue, rightLimit);
 						positionChanged = true;
@@ -387,7 +469,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 				for (int i = 0; i < nextLayerConnectedCells.length; i++)
 				{
 					mxGraphAbstractHierarchyCell connectedCell = (mxGraphAbstractHierarchyCell) nextLayerConnectedCells[i];
-					WeightedCellSorter connectedCellWrapper = (WeightedCellSorter) map
+					WeightedCellSorter connectedCellWrapper = map
 							.get(connectedCell);
 
 					if (connectedCellWrapper != null)
@@ -404,7 +486,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 				for (int i = 0; i < previousLayerConnectedCells.length; i++)
 				{
 					mxGraphAbstractHierarchyCell connectedCell = (mxGraphAbstractHierarchyCell) previousLayerConnectedCells[i];
-					WeightedCellSorter connectedCellWrapper = (WeightedCellSorter) map
+					WeightedCellSorter connectedCellWrapper = map
 							.get(connectedCell);
 
 					if (connectedCellWrapper != null)
@@ -467,10 +549,9 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 	protected void rankMedianPosition(int rankValue,
 			mxGraphHierarchyModel model, int nextRankValue)
 	{
-		mxGraphHierarchyRank rankSet = (mxGraphHierarchyRank) model.ranks
-				.get(new Integer(rankValue));
+		mxGraphHierarchyRank rankSet = model.ranks.get(new Integer(rankValue));
 		Object[] rank = rankSet.toArray();
-		// Form an array of the order in which the cell are to be processed
+		// Form an array of the order in which the cells are to be processed
 		// , the order is given by the weighted sum of the in or out edges,
 		// depending on whether we're travelling up or down the hierarchy.
 		WeightedCellSorter[] weightedValues = new WeightedCellSorter[rank.length];
@@ -497,7 +578,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 						.getNextLayerConnectedCells(rankValue);
 			}
 
-			// Calcuate the weighing based on this node type and those this
+			// Calculate the weighing based on this node type and those this
 			// node is connected to on the next layer
 			weightedValues[i].weightedValue = calculatedWeightedValue(
 					currentCell, nextLayerConnectedCells);
@@ -548,8 +629,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 			for (int j = weightedValues[i].rankIndex - 1; j >= 0;)
 			{
-				WeightedCellSorter weightedValue = (WeightedCellSorter) cellMap
-						.get(rank[j]);
+				WeightedCellSorter weightedValue = cellMap.get(rank[j]);
 
 				if (weightedValue != null)
 				{
@@ -581,8 +661,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 			for (int j = weightedValues[i].rankIndex + 1; j < weightedValues.length;)
 			{
-				WeightedCellSorter weightedValue = (WeightedCellSorter) cellMap
-						.get(rank[j]);
+				WeightedCellSorter weightedValue = cellMap.get(rank[j]);
 
 				if (weightedValue != null)
 				{
@@ -611,9 +690,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 			if (medianNextLevel >= leftLimit && medianNextLevel <= rightLimit)
 			{
-				cell
-						.setGeneralPurposeVariable(rankValue,
-								(int) medianNextLevel);
+				cell.setGeneralPurposeVariable(rankValue, medianNextLevel);
 			}
 			else if (medianNextLevel < leftLimit)
 			{
@@ -770,12 +847,9 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 		// Store whether or not any of the cells' bounds were unavailable so
 		// to only issue the warning once for all cells
 		boolean boundsWarning = false;
-		Iterator<mxGraphAbstractHierarchyCell> iter = rank.iterator();
 
-		while (iter.hasNext())
+		for (mxGraphAbstractHierarchyCell cell : rank)
 		{
-			mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
-					.next();
 			if (cell.isVertex())
 			{
 				mxGraphHierarchyNode node = (mxGraphHierarchyNode) cell;
@@ -870,8 +944,7 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 			while (iter.hasNext())
 			{
-				mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
-						.next();
+				mxGraphAbstractHierarchyCell cell = iter.next();
 
 				if (cell.isVertex())
 				{
@@ -958,11 +1031,232 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 
 			while (iter.hasNext())
 			{
-				mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
-						.next();
+				mxGraphAbstractHierarchyCell cell = iter.next();
 				cell.setY(rankValue, y);
 			}
 		}
+	}
+
+	/**
+	 * Straightens out chains of virtual nodes where possible
+	 * 
+	 * @param model
+	 *            an internal model of the hierarchical layout
+	 */
+	protected void minPath(mxGraphHierarchyModel model)
+	{
+		// Work down and up each edge with at least 2 control points
+		// trying to straighten each one out. If the same number of
+		// straight segments are formed in both directions, the 
+		// preferred direction used is the one where the final
+		// control points have the least offset from the connectable 
+		// region of the terminating vertices
+		Map<Object, mxGraphHierarchyEdge> edges = model.getEdgeMapper();
+
+		for (mxGraphAbstractHierarchyCell cell : edges.values())
+		{
+			if (cell.maxRank > cell.minRank + 2)
+			{
+				int numEdgeLayers = cell.maxRank - cell.minRank - 1;
+				// At least two virtual nodes in the edge
+				// Check first whether the edge is already straight
+				int referenceX = cell
+						.getGeneralPurposeVariable(cell.minRank + 1);
+				boolean edgeStraight = true;
+				int refSegCount = 0;
+
+				for (int i = cell.minRank + 2; i < cell.maxRank; i++)
+				{
+					int x = cell.getGeneralPurposeVariable(i);
+
+					if (referenceX != x)
+					{
+						edgeStraight = false;
+						referenceX = x;
+					}
+					else
+					{
+						refSegCount++;
+					}
+				}
+
+				if (edgeStraight)
+				{
+					continue;
+				}
+
+				int upSegCount = 0;
+				int downSegCount = 0;
+				double upXPositions[] = new double[numEdgeLayers - 1];
+				double downXPositions[] = new double[numEdgeLayers - 1];
+
+				double currentX = cell.getX(cell.minRank + 1);
+
+				for (int i = cell.minRank + 1; i < cell.maxRank - 1; i++)
+				{
+					// Attempt to straight out the control point on the
+					// next segment up with the current control point.
+					double nextX = cell.getX(i + 1);
+
+					if (currentX == nextX)
+					{
+						upXPositions[i - cell.minRank - 1] = currentX;
+						upSegCount++;
+					}
+					else if (repositionValid(model, cell, i + 1, currentX))
+					{
+						upXPositions[i - cell.minRank - 1] = currentX;
+						upSegCount++;
+						// Leave currentX at same value
+					}
+					else
+					{
+						upXPositions[i - cell.minRank - 1] = nextX;
+						currentX = nextX;
+					}
+				}
+
+				currentX = cell.getX(cell.maxRank - 1);
+
+				for (int i = cell.maxRank - 1; i > cell.minRank + 1; i--)
+				{
+					// Attempt to straight out the control point on the
+					// next segment down with the current control point.
+					double nextX = cell.getX(i - 1);
+
+					if (currentX == nextX)
+					{
+						downXPositions[i - cell.minRank - 2] = currentX;
+						downSegCount++;
+					}
+					else if (repositionValid(model, cell, i - 1, currentX))
+					{
+						downXPositions[i - cell.minRank - 2] = currentX;
+						downSegCount++;
+						// Leave currentX at same value
+					}
+					else
+					{
+						downXPositions[i - cell.minRank - 2] = cell.getX(i-1);
+						currentX = nextX;
+					}
+				}
+
+				if (downSegCount <= refSegCount && upSegCount <= refSegCount)
+				{
+					// Neither of the new calculation provide a straighter edge
+					continue;
+				}
+
+				if (downSegCount >= upSegCount)
+				{
+					// Apply down calculation values
+					for (int i = cell.maxRank - 2; i > cell.minRank; i--)
+					{
+						cell.setX(i, (int) downXPositions[i - cell.minRank - 1]);
+					}
+				}
+				else if (upSegCount > downSegCount)
+				{
+					// Apply up calculation values
+					for (int i = cell.minRank + 2; i < cell.maxRank; i++)
+					{
+						cell.setX(i, (int) upXPositions[i - cell.minRank - 2]);
+					}
+				}
+				else
+				{
+					// Neither direction provided a favourable result
+					// But both calculations are better than the
+					// existing solution, so apply the one with minimal
+					// offset to attached vertices at either end.
+
+				}
+			}
+		}
+	}
+
+	/**
+	 * Determines whether or not a node may be moved to the specified x 
+	 * position on the specified rank
+	 * @param model the layout model
+	 * @param cell the cell being analysed
+	 * @param rank the layer of the cell
+	 * @param position the x position being sought
+	 * @return whether or not the virtual node can be moved to this position
+	 */
+	protected boolean repositionValid(mxGraphHierarchyModel model,
+			mxGraphAbstractHierarchyCell cell, int rank, double position)
+	{
+		mxGraphHierarchyRank rankSet = model.ranks.get(new Integer(rank));
+		mxGraphAbstractHierarchyCell[] rankArray = rankSet
+				.toArray(new mxGraphAbstractHierarchyCell[rankSet.size()]);
+		int rankIndex = -1;
+
+		for (int i = 0; i < rankArray.length; i++)
+		{
+			if (cell == rankArray[i])
+			{
+				rankIndex = i;
+				break;
+			}
+		}
+
+		if (rankIndex < 0)
+		{
+			return false;
+		}
+
+		int currentX = cell.getGeneralPurposeVariable(rank);
+
+		if (position < currentX)
+		{
+			// Trying to move node to the left.
+			if (rankIndex == 0)
+			{
+				// Left-most node, can move anywhere
+				return true;
+			}
+
+			mxGraphAbstractHierarchyCell leftCell = rankArray[rankIndex - 1];
+			int leftLimit = leftCell.getGeneralPurposeVariable(rank);
+			leftLimit = leftLimit + (int) leftCell.width / 2
+					+ (int) intraCellSpacing + (int) cell.width / 2;
+
+			if (leftLimit <= position)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else if (position > currentX)
+		{
+			// Trying to move node to the right.
+			if (rankIndex == rankArray.length - 1)
+			{
+				// Right-most node, can move anywhere
+				return true;
+			}
+
+			mxGraphAbstractHierarchyCell rightCell = rankArray[rankIndex + 1];
+			int rightLimit = rightCell.getGeneralPurposeVariable(rank);
+			rightLimit = rightLimit - (int) rightCell.width / 2
+					- (int) intraCellSpacing - (int) cell.width / 2;
+
+			if (rightLimit >= position)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -974,129 +1268,465 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 	 * @param model
 	 *            an internal model of the hierarchical layout
 	 */
-	private void setCellLocations(mxGraph graph, mxGraphHierarchyModel model)
+	protected void setCellLocations(mxGraph graph, mxGraphHierarchyModel model)
 	{
+		rankTopY = new double[model.ranks.size()];
+		rankBottomY = new double[model.ranks.size()];
+
+		for (int i = 0; i < model.ranks.size(); i++)
+		{
+			rankTopY[i] = Double.MAX_VALUE;
+			rankBottomY[i] = 0.0;
+		}
+
+		Set<Object> parentsChanged = null;
+		
+		if (layout.isResizeParent())
+		{
+			parentsChanged = new HashSet<Object>();
+		}
+		
+		Map<Object, mxGraphHierarchyEdge> edges = model.getEdgeMapper();
+		Map<Object, mxGraphHierarchyNode> vertices = model.getVertexMapper();
+
+		// Process vertices all first, since they define the lower and 
+		// limits of each rank. Between these limits lie the channels
+		// where the edges can be routed across the graph
+
+		for (mxGraphHierarchyNode cell : vertices.values())
+		{
+			setVertexLocation(cell);
+			
+			if (layout.isResizeParent())
+			{
+				parentsChanged.add(graph.getModel().getParent(cell.cell));
+			}
+		}
+		
+		if (layout.isResizeParent())
+		{
+			adjustParents(parentsChanged);
+		}
+
+		// Post process edge styles. Needs the vertex locations set for initial
+		// values of the top and bottoms of each rank
+		if (this.edgeStyle == HierarchicalEdgeStyle.ORTHOGONAL
+				|| this.edgeStyle == HierarchicalEdgeStyle.POLYLINE)
+		{
+			localEdgeProcessing(model);
+		}
+
+		for (mxGraphAbstractHierarchyCell cell : edges.values())
+		{
+			setEdgePosition(cell);
+		}
+	}
+
+	/**
+	 * Adjust parent cells whose child geometries have changed. The default 
+	 * implementation adjusts the group to just fit around the children with 
+	 * a padding.
+	 */
+	protected void adjustParents(Set<Object> parentsChanged)
+	{
+		layout.arrangeGroups(mxUtils.sortCells(parentsChanged, true).toArray(), groupPadding);
+	}
+
+	/**
+	 * Separates the x position of edges as they connect to vertices
+	 * 
+	 * @param model
+	 *            an internal model of the hierarchical layout
+	 */
+	protected void localEdgeProcessing(mxGraphHierarchyModel model)
+	{
+		// Check the map of jetty positions doesn't contain
+		// any deleted edges. We can't use a WeakHashMap because
+		// it doesn't translate to JS.
+		Map<Object, mxGraphHierarchyEdge> edgeMapping = model.getEdgeMapper();
+
+		if (edgeMapping != null && jettyPositions.size() != edgeMapping.size())
+		{
+			jettyPositions = new HashMap<mxGraphHierarchyEdge, double[]>();
+		}
+
+		//jettyPositions.removeAll();
+		// Iterate through each vertex, look at the edges connected in
+		// both directions.
 		for (int i = 0; i < model.ranks.size(); i++)
 		{
 			mxGraphHierarchyRank rank = model.ranks.get(new Integer(i));
 
+			// Iterate over the top rank and fill in the connection information
 			Iterator<mxGraphAbstractHierarchyCell> iter = rank.iterator();
+
 			while (iter.hasNext())
 			{
-				mxGraphAbstractHierarchyCell cell = (mxGraphAbstractHierarchyCell) iter
-						.next();
+				mxGraphAbstractHierarchyCell cell = iter.next();
 
 				if (cell.isVertex())
 				{
-					mxGraphHierarchyNode node = (mxGraphHierarchyNode) cell;
-					Object realCell = node.cell;
-					double positionX = node.x[0] - node.width / 2;
-					double positionY = node.y[0] - node.height / 2;
+					mxGraphAbstractHierarchyCell[] currentCells = (cell
+							.getPreviousLayerConnectedCells(i))
+							.toArray(new mxGraphAbstractHierarchyCell[cell
+									.getPreviousLayerConnectedCells(i).size()]);
 
-					if (orientation == SwingConstants.NORTH
-							|| orientation == SwingConstants.SOUTH)
+					int currentRank = i - 1;
+
+					// Two loops, last connected cells, and next
+					for (int k = 0; k < 2; k++)
 					{
-						layout
-								.setVertexLocation(realCell, positionX,
-										positionY);
-					}
-					else
-					{
-						layout
-								.setVertexLocation(realCell, positionY,
-										positionX);
-					}
-
-					limitX = Math.max(limitX, positionX + node.width);
-				}
-				else if (cell.isEdge())
-				{
-					mxGraphHierarchyEdge edge = (mxGraphHierarchyEdge) cell;
-					// For parallel edges we need to seperate out the points a
-					// little
-					double offsetX = 0.0;
-					// Only set the edge control points once
-
-					if (edge.temp[0] != 101207)
-					{
-						Iterator<Object> parallelEdges = edge.edges.iterator();
-
-						while (parallelEdges.hasNext())
+						if (currentRank > -1
+								&& currentRank < model.ranks.size()
+								&& currentCells != null
+								&& currentCells.length > 0)
 						{
-							Object realEdge = parallelEdges.next();
-							//List oldPoints = graph.getPoints(realEdge);
-							List<mxPoint> newPoints = new ArrayList<mxPoint>(edge.x.length);
+							WeightedCellSorter[] sortedCells = new WeightedCellSorter[currentCells.length];
 
-							if (edge.isReversed())
+							for (int j = 0; j < currentCells.length; j++)
 							{
-								// Reversed edges need the points inserted in
-								// reverse order
-								for (int j = 0; j < edge.x.length; j++)
-								{
-									double positionX = edge.x[j] + offsetX;
+								sortedCells[j] = new WeightedCellSorter(
+										currentCells[j],
+										-(int) currentCells[j].getX(currentRank));
+							}
 
-									if (orientation == SwingConstants.NORTH
-											|| orientation == SwingConstants.SOUTH)
+							Arrays.sort(sortedCells);
+
+							mxGraphHierarchyNode node = (mxGraphHierarchyNode) cell;
+							double leftLimit = node.x[0] - node.width / 2;
+							double rightLimit = leftLimit + node.width;
+
+							// Connected edge count starts at 1 to allow for buffer
+							// with edge of vertex
+							int connectedEdgeCount = 0;
+							int connectedEdgeGroupCount = 0;
+							mxGraphHierarchyEdge[] connectedEdges = new mxGraphHierarchyEdge[sortedCells.length];
+							// Calculate width requirements for all connected edges
+							for (int j = 0; j < sortedCells.length; j++)
+							{
+								mxGraphAbstractHierarchyCell innerCell = sortedCells[j].cell;
+								Collection<mxGraphHierarchyEdge> connections;
+
+								if (innerCell.isVertex())
+								{
+									// Get the connecting edge
+									if (k == 0)
 									{
-										newPoints.add(new mxPoint(positionX,
-												edge.y[j]));
+										connections = ((mxGraphHierarchyNode) cell).connectsAsSource;
+
 									}
 									else
 									{
-										newPoints.add(new mxPoint(edge.y[j],
-												positionX));
+										connections = ((mxGraphHierarchyNode) cell).connectsAsTarget;
 									}
 
-									limitX = Math.max(limitX, positionX);
-								}
+									for (mxGraphHierarchyEdge connectedEdge : connections)
+									{
+										if (connectedEdge.source == innerCell
+												|| connectedEdge.target == innerCell)
+										{
+											connectedEdgeCount += connectedEdge.edges
+													.size();
+											connectedEdgeGroupCount++;
 
-								processReversedEdge(edge, realEdge);
-							}
-							else
-							{
-								for (int j = edge.x.length - 1; j >= 0; j--)
+											connectedEdges[j] = connectedEdge;
+										}
+									}
+								}
+								else
 								{
-									double positionX = edge.x[j] + offsetX;
-
-									if (orientation == SwingConstants.NORTH
-											|| orientation == SwingConstants.SOUTH)
-									{
-										newPoints.add(new mxPoint(positionX,
-												edge.y[j]));
-									}
-									else
-									{
-										newPoints.add(new mxPoint(edge.y[j],
-												positionX));
-									}
-
-									limitX = Math.max(limitX, positionX);
+									connectedEdgeCount += ((mxGraphHierarchyEdge) innerCell).edges
+											.size();
+									connectedEdgeGroupCount++;
+									connectedEdges[j] = (mxGraphHierarchyEdge) innerCell;
 								}
 							}
 
-							layout.setEdgePoints(realEdge, newPoints);
+							double requiredWidth = (connectedEdgeCount + 1)
+									* prefHozEdgeSep;
 
-							// Increase offset so next edge is drawn next to
-							// this one
-							if (offsetX == 0.0)
+							// Add a buffer on the edges of the vertex if the edge count allows
+							if (cell.width > requiredWidth
+									+ (2 * prefHozEdgeSep))
 							{
-								offsetX = parallelEdgeSpacing;
+								leftLimit += prefHozEdgeSep;
+								rightLimit -= prefHozEdgeSep;
 							}
-							else if (offsetX > 0)
+
+							double availableWidth = rightLimit - leftLimit;
+							double edgeSpacing = availableWidth / connectedEdgeCount;
+
+							double currentX = leftLimit + edgeSpacing / 2.0;
+							double currentYOffset = minEdgeJetty - prefVertEdgeOff;
+							double maxYOffset = 0;
+
+							for (int j = 0; j < connectedEdges.length; j++)
 							{
-								offsetX = -offsetX;
-							}
-							else
-							{
-								offsetX = -offsetX + parallelEdgeSpacing;
+								int numActualEdges = connectedEdges[j].edges
+										.size();
+								double[] pos = jettyPositions
+										.get(connectedEdges[j]);
+
+								if (pos == null
+										|| pos.length != 4 * numActualEdges)
+								{
+									pos = new double[4 * numActualEdges];
+									jettyPositions.put(connectedEdges[j], pos);
+								}
+
+								if (j < (float)connectedEdgeCount / 2.0f)
+								{
+									currentYOffset += prefVertEdgeOff;
+								}
+								else if (j > (float)connectedEdgeCount / 2.0f)
+								{
+									currentYOffset -= prefVertEdgeOff;
+								}
+								// Ignore the case if equals, this means the second of 2
+								// jettys with the same y (even number of edges)
+
+								for (int m = 0; m < numActualEdges; m++)
+								{
+									pos[m * 4 + k * 2] = currentX;
+									currentX += edgeSpacing;
+									pos[m * 4 + k * 2 + 1] = currentYOffset;
+								}
+								
+								maxYOffset = Math.max(maxYOffset,
+										currentYOffset);
 							}
 						}
 
-						edge.temp[0] = 101207;
+						currentCells = (cell.getNextLayerConnectedCells(i))
+								.toArray(new mxGraphAbstractHierarchyCell[cell
+										.getNextLayerConnectedCells(i).size()]);
+
+						currentRank = i + 1;
 					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * Fixes the control points 
+	 * @param cell
+	 */
+	protected void setEdgePosition(mxGraphAbstractHierarchyCell cell)
+	{
+		mxGraphHierarchyEdge edge = (mxGraphHierarchyEdge) cell;
+
+		// For parallel edges we need to separate out the points a
+		// little
+		double offsetX = 0.0;
+
+		// Only set the edge control points once
+		if (edge.temp[0] != 101207)
+		{
+			int maxRank = edge.maxRank;
+			int minRank = edge.minRank;
+			
+			if (maxRank == minRank)
+			{
+				maxRank = edge.source.maxRank;
+				minRank = edge.target.minRank;
+			}
+
+			Iterator<Object> parallelEdges = edge.edges.iterator();
+			int parallelEdgeCount = 0;
+			double[] jettys = jettyPositions.get(edge);
+			
+			Object source = edge.isReversed() ? edge.target.cell : edge.source.cell;
+
+			while (parallelEdges.hasNext())
+			{
+				Object realEdge = parallelEdges.next();
+				Object realSource = layout.getGraph().getView().getVisibleTerminal(realEdge, true);
+				
+				List<mxPoint> newPoints = new ArrayList<mxPoint>(edge.x.length);
+
+				// Single length reversed edges end up with the jettys in the wrong
+				// places. Since single length edges only have jettys, not segment
+				// control points, we just say the edge isn't reversed in this section
+				boolean reversed = edge.isReversed();
+				
+				if (realSource != source)
+				{
+					// The real edges include all core model edges and these can go
+					// in both directions. If the source of the hierarchical model edge
+					// isn't the source of the specific real edge in this iteration
+					// treat if as reversed
+					reversed = !reversed;
+				}
+				
+				// First jetty of edge
+				if (jettys != null)
+				{
+					int arrayOffset = reversed ? 2 : 0;
+					double y = reversed ? rankTopY[minRank] : rankBottomY[maxRank];
+					double jetty = jettys[parallelEdgeCount * 4 + 1 + arrayOffset];
+					
+					// If the edge is reversed invert the y position within the channel,
+					// unless it is a single length edge
+					if (reversed)
+					{
+						jetty = -jetty;
+					}
+					
+					y += jetty;
+					double x = jettys[parallelEdgeCount * 4 + arrayOffset];
+
+					if (orientation == SwingConstants.NORTH
+							|| orientation == SwingConstants.SOUTH)
+					{
+						newPoints.add(new mxPoint(x, y));
+					}
+					else
+					{
+						newPoints.add(new mxPoint(y, x));
+					}
+				}
+
+				// Declare variables to define loop through edge points and 
+				// change direction if edge is reversed
+
+				int loopStart = edge.x.length - 1;
+				int loopLimit = -1;
+				int loopDelta = -1;
+				int currentRank = edge.maxRank - 1;
+
+				if (reversed)
+				{
+					loopStart = 0;
+					loopLimit = edge.x.length;
+					loopDelta = 1;
+					currentRank = edge.minRank + 1;
+				}
+
+				// Reversed edges need the points inserted in
+				// reverse order
+				for (int j = loopStart; (edge.maxRank != edge.minRank) && j != loopLimit; j += loopDelta)
+				{
+					// The horizontal position in a vertical layout
+					double positionX = edge.x[j] + offsetX;
+
+					// Work out the vertical positions in a vertical layout
+					// in the edge buffer channels above and below this rank
+					double topChannelY = (rankTopY[currentRank] + rankBottomY[currentRank + 1]) / 2.0;
+					double bottomChannelY = (rankTopY[currentRank - 1] + rankBottomY[currentRank]) / 2.0;
+
+					if (reversed)
+					{
+						double tmp = topChannelY;
+						topChannelY = bottomChannelY;
+						bottomChannelY = tmp;
+					}
+
+					if (orientation == SwingConstants.NORTH
+							|| orientation == SwingConstants.SOUTH)
+					{
+						newPoints.add(new mxPoint(positionX, topChannelY));
+						newPoints.add(new mxPoint(positionX, bottomChannelY));
+					}
+					else
+					{
+						newPoints.add(new mxPoint(topChannelY, positionX));
+						newPoints.add(new mxPoint(bottomChannelY, positionX));
+					}
+
+					limitX = Math.max(limitX, positionX);
+
+					//					double currentY = (rankTopY[currentRank] + rankBottomY[currentRank]) / 2.0;
+					//					System.out.println("topChannelY = " + topChannelY + " , "
+					//							+ "exact Y = " + edge.y[j]);
+					currentRank += loopDelta;
+				}
+
+				// Second jetty of edge
+				if (jettys != null)
+				{
+					int arrayOffset = reversed ? 2 : 0;
+					double rankY = reversed ? rankBottomY[maxRank] : rankTopY[minRank];
+					double jetty = jettys[parallelEdgeCount * 4 + 3 - arrayOffset];
+					
+					if (reversed)
+					{
+						jetty = -jetty;
+					}
+					double y = rankY - jetty;
+					double x = jettys[parallelEdgeCount * 4 + 2 - arrayOffset];
+
+					if (orientation == SwingConstants.NORTH
+							|| orientation == SwingConstants.SOUTH)
+					{
+						newPoints.add(new mxPoint(x, y));
+					}
+					else
+					{
+						newPoints.add(new mxPoint(y, x));
+					}
+				}
+				
+				if (edge.isReversed())
+				{
+					processReversedEdge(edge, realEdge);
+				}
+
+				layout.setEdgePoints(realEdge, newPoints);
+
+				// Increase offset so next edge is drawn next to
+				// this one
+				if (offsetX == 0.0)
+				{
+					offsetX = parallelEdgeSpacing;
+				}
+				else if (offsetX > 0)
+				{
+					offsetX = -offsetX;
+				}
+				else
+				{
+					offsetX = -offsetX + parallelEdgeSpacing;
+				}
+				
+				parallelEdgeCount++;
+			}
+
+			edge.temp[0] = 101207;
+		}
+	}
+
+	/**
+	 * Fixes the position of the specified vertex
+	 * @param cell the vertex to position
+	 */
+	protected void setVertexLocation(mxGraphAbstractHierarchyCell cell)
+	{
+		mxGraphHierarchyNode node = (mxGraphHierarchyNode) cell;
+		Object realCell = node.cell;
+		double positionX = node.x[0] - node.width / 2;
+		double positionY = node.y[0] - node.height / 2;
+
+//		if (cell.minRank == -1)
+//		{
+//			System.out.println("invalid rank, never set");
+//		}
+
+		rankTopY[cell.minRank] = Math.min(rankTopY[cell.minRank], positionY);
+		rankBottomY[cell.minRank] = Math.max(rankBottomY[cell.minRank],
+				positionY + node.height);
+
+		if (orientation == SwingConstants.NORTH
+				|| orientation == SwingConstants.SOUTH)
+		{
+			layout.setVertexLocation(realCell, positionX, positionY);
+		}
+		else
+		{
+			layout.setVertexLocation(realCell, positionY, positionX);
+		}
+
+		limitX = Math.max(limitX, positionX + node.width);
 	}
 
 	/**
@@ -1107,7 +1737,8 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 	 * @param realEdge
 	 *            The real edge in the graph
 	 */
-	private void processReversedEdge(mxGraphHierarchyEdge edge, Object realEdge)
+	protected void processReversedEdge(mxGraphHierarchyEdge edge,
+			Object realEdge)
 	{
 		// Added as hook for customer
 	}
@@ -1177,31 +1808,16 @@ public class mxCoordinateAssignment implements mxHierarchicalLayoutStage
 				{
 					return 1;
 				}
-				else
-				{
-					if (nudge)
-					{
-						return -1;
-					}
-					else
-					{
-						return 1;
-					}
-				}
 			}
-			else
-			{
-				return 0;
-			}
-		}
 
+			return 0;
+		}
 	}
 
 	/**
 	 * Utility class that stores a collection of vertices and edge points within
 	 * a certain area. This area includes the buffer lengths of cells.
 	 */
-	@SuppressWarnings("serial")
 	protected class AreaSpatialCache extends Rectangle2D.Double
 	{
 		public Set<Object> cells = new HashSet<Object>();

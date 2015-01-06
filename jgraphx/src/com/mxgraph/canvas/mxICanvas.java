@@ -1,14 +1,11 @@
 /**
- * $Id: mxICanvas.java,v 1.19 2010/01/13 10:43:46 gaudenz Exp $
- * Copyright (c) 2007, Gaudenz Alder
+ * Copyright (c) 2007-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.canvas;
 
 import java.awt.Point;
-import java.util.List;
-import java.util.Map;
 
-import com.mxgraph.util.mxPoint;
+import com.mxgraph.view.mxCellState;
 
 /**
  * Defines the requirements for a canvas that paints the vertices and edges of
@@ -39,40 +36,21 @@ public interface mxICanvas
 	double getScale();
 
 	/**
-	 * Draws the given vertex.
+	 * Draws the given cell.
 	 * 
-	 * @param x X-coordinate of the vertex.
-	 * @param y Y-coordinate of the vertex.
-	 * @param width Width of the vertex.
-	 * @param height Height of the vertex.
-	 * @param style Style of the vertex.
-	 * @return Optional object that represents the vertex.
+	 * @param state State of the cell to be painted.
+	 * @return Object that represents the cell.
 	 */
-	Object drawVertex(int x, int y, int width, int height,
-			Map<String, Object> style);
-
-	/**
-	 * Draws the given edge.
-	 * 
-	 * @param pts List of mxPoints that make up the edge.
-	 * @param style Style of the edge.
-	 * @return Optional object that represents the edge.
-	 */
-	Object drawEdge(List<mxPoint> pts, Map<String, Object> style);
+	Object drawCell(mxCellState state);
 
 	/**
 	 * Draws the given label.
 	 * 
-	 * @param label String that represents the label.
-	 * @param x X-coordinate of the label.
-	 * @param y Y-coordinate of the label.
-	 * @param width Width of the label.
-	 * @param height Height of the label.
-	 * @param style Style of the label.
-	 * @param isHtml Specifies if the label contains HTML markup.
-	 * @return Optional object that represents the label.
+	 * @param text String that represents the label.
+	 * @param state State of the cell whose label is to be painted.
+	 * @param html Specifies if the label contains HTML markup.
+	 * @return Object that represents the label.
 	 */
-	Object drawLabel(String label, int x, int y, int width, int height,
-			Map<String, Object> style, boolean isHtml);
+	Object drawLabel(String text, mxCellState state, boolean html);
 
 }

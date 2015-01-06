@@ -1,5 +1,4 @@
 /**
- * $Id: mxGraphOutline.java,v 1.20 2009/11/29 13:48:01 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing;
@@ -190,19 +189,6 @@ public class mxGraphOutline extends JComponent
 		}
 	};
 
-	public void updateOutline() {
-		if (updateScaleAndTranslate())
-		{
-			repaintBuffer = true;
-			updateFinder(false);
-			repaint();
-		}
-		else
-		{
-			updateFinder(true);
-		}
-	}
-	
 	/**
 	 * 
 	 */
@@ -210,7 +196,16 @@ public class mxGraphOutline extends JComponent
 	{
 		public void componentResized(ComponentEvent e)
 		{
-			updateOutline();
+			if (updateScaleAndTranslate())
+			{
+				repaintBuffer = true;
+				updateFinder(false);
+				repaint();
+			}
+			else
+			{
+				updateFinder(true);
+			}
 		}
 	};
 
@@ -225,28 +220,31 @@ public class mxGraphOutline extends JComponent
 		 */
 		public void adjustmentValueChanged(AdjustmentEvent e)
 		{
-			updateOutline();
+			if (updateScaleAndTranslate())
+			{
+				repaintBuffer = true;
+				updateFinder(false);
+				repaint();
+			}
+			else
+			{
+				updateFinder(true);
+			}
 		}
 
 	};
 
-	private int height;
-	private int width;
 	/**
 	 * 
 	 */
-	public mxGraphOutline(mxGraphComponent graphComponent,int h,int w)
+	public mxGraphOutline(mxGraphComponent graphComponent)
 	{
-		height=h;width=w;
 		addComponentListener(componentHandler);
 		addMouseMotionListener(tracker);
 		addMouseListener(tracker);
 		setGraphComponent(graphComponent);
 		setEnabled(true);
 		setOpaque(true);
-		setMaximumSize(new Dimension(2*w, h));
-		setPreferredSize(new Dimension(w, h));
-		setMinimumSize(new Dimension(w/2, h));
 	}
 
 	/**
@@ -499,8 +497,8 @@ public class mxGraphOutline extends JComponent
 		{
 			if (clip == null)
 			{
-				clip = new Rectangle(tripleBuffer.getWidth(), tripleBuffer
-						.getHeight());
+				clip = new Rectangle(tripleBuffer.getWidth(),
+						tripleBuffer.getHeight());
 			}
 
 			// Clears and repaints the dirty rectangle using the
@@ -625,7 +623,14 @@ public class mxGraphOutline extends JComponent
 				// Draws the scaled page background
 				if (!graphComponent.isPageVisible())
 				{
-					g.setColor(graphComponent.getBackground());
+					Color bg = graphComponent.getBackground();
+
+					if (graphComponent.getViewport().isOpaque())
+					{
+						bg = graphComponent.getViewport().getBackground();
+					}
+
+					g.setColor(bg);
 					Dimension size = graphComponent.getGraphControl().getSize();
 
 					// Paints the background of the drawing surface
@@ -664,11 +669,13 @@ public class mxGraphOutline extends JComponent
 
 			try
 			{
-				g2.translate(translate.x, translate.y);
+				Point tr = graphComponent.getGraphControl().getTranslate();
+				g2.translate(translate.x + tr.getX() * scale,
+						translate.y + tr.getY() * scale);
 				g2.scale(scale, scale);
 
 				// Draws the scaled graph
-				graphComponent.paintGraph(g2, drawLabels);
+				graphComponent.getGraphControl().drawGraph(g2, drawLabels);
 			}
 			finally
 			{
@@ -693,13 +700,16 @@ public class mxGraphOutline extends JComponent
 			g.drawRect(finderBounds.x, finderBounds.y, finderBounds.width,
 					finderBounds.height);
 
-			g2.setStroke(stroke);
-			g.setColor(DEFAULT_ZOOMHANDLE_FILL);
-			g.fillRect(finderBounds.x + finderBounds.width - 6, finderBounds.y
-					+ finderBounds.height - 6, 8, 8);
-			g.setColor(Color.BLACK);
-			g.drawRect(finderBounds.x + finderBounds.width - 6, finderBounds.y
-					+ finderBounds.height - 6, 8, 8);
+			if (zoomHandleVisible)
+			{
+				g2.setStroke(stroke);
+				g.setColor(DEFAULT_ZOOMHANDLE_FILL);
+				g.fillRect(finderBounds.x + finderBounds.width - 6, finderBounds.y
+						+ finderBounds.height - 6, 8, 8);
+				g.setColor(Color.BLACK);
+				g.drawRect(finderBounds.x + finderBounds.width - 6, finderBounds.y
+						+ finderBounds.height - 6, 8, 8);
+			}
 		}
 	}
 

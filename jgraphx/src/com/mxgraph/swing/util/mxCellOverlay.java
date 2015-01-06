@@ -56,6 +56,38 @@ public class mxCellOverlay extends JComponent implements mxICellOverlay
 	}
 
 	/**
+	 * @return the alignment of the overlay, see <code>mxConstants.ALIGN_*****</code>
+	 */
+	public Object getAlign()
+	{
+		return align;
+	}
+
+	/**
+	 * @param value the alignment to set, see <code>mxConstants.ALIGN_*****</code>
+	 */
+	public void setAlign(Object value)
+	{
+		align = value;
+	}
+
+	/**
+	 * @return the vertical alignment, see <code>mxConstants.ALIGN_*****</code>
+	 */
+	public Object getVerticalAlign()
+	{
+		return verticalAlign;
+	}
+
+	/**
+	 * @param value the vertical alignment to set, see <code>mxConstants.ALIGN_*****</code>
+	 */
+	public void setVerticalAlign(Object value)
+	{
+		verticalAlign = value;
+	}
+
+	/**
 	 * 
 	 */
 	public void paint(Graphics g)
@@ -69,8 +101,8 @@ public class mxCellOverlay extends JComponent implements mxICellOverlay
 	 */
 	public mxRectangle getBounds(mxCellState state)
 	{
-		boolean isEdge = state.getView().getGraph().getModel().isEdge(
-				state.getCell());
+		boolean isEdge = state.getView().getGraph().getModel()
+				.isEdge(state.getCell());
 		double s = state.getView().getScale();
 		mxPoint pt = null;
 
@@ -90,9 +122,8 @@ public class mxCellOverlay extends JComponent implements mxICellOverlay
 				int idx = n / 2;
 				mxPoint p0 = state.getAbsolutePoint(idx - 1);
 				mxPoint p1 = state.getAbsolutePoint(idx);
-				pt = new mxPoint(p0.getX() + (p1.getX() - p0.getX()) / 2, p0
-						.getY()
-						+ (p1.getY() - p0.getY()) / 2);
+				pt = new mxPoint(p0.getX() + (p1.getX() - p0.getX()) / 2,
+						p0.getY() + (p1.getY() - p0.getY()) / 2);
 			}
 		}
 		else

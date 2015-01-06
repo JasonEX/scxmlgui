@@ -1,5 +1,4 @@
 /**
- * $Id: mxConnectionHandler.java,v 1.20 2010/02/04 08:10:23 gaudenz Exp $
  * Copyright (c) 2008, Gaudenz Alder
  */
 package com.mxgraph.swing.handler;
@@ -7,36 +6,40 @@ package com.mxgraph.swing.handler;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 
 import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.swing.mxGraphComponent.mxGraphControl;
-import com.mxgraph.swing.util.mxMouseControl;
+import com.mxgraph.swing.util.mxMouseAdapter;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
+import com.mxgraph.util.mxEventSource;
 import com.mxgraph.util.mxEventSource.mxIEventListener;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxRectangle;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxGraphView;
-import com.mxgraph.view.mxPerimeter.mxPerimeterFunction;
 
 /**
  * Connection handler creates new connections between cells. This control is used to display the connector
  * icon, while the preview is used to draw the line.
+ * 
+ * mxEvent.CONNECT fires between begin- and endUpdate in mouseReleased. The <code>cell</code>
+ * property contains the inserted edge, the <code>event</code> and <code>target</code> 
+ * properties contain the respective arguments that were passed to mouseReleased.
  */
-public class mxConnectionHandler extends mxMouseControl
+public class mxConnectionHandler extends mxMouseAdapter
 {
 
 	/**
@@ -47,12 +50,22 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public static Cursor DEFAULT_CURSOR = new Cursor(Cursor.HAND_CURSOR);
+	public static Cursor CONNECT_CURSOR = new Cursor(Cursor.HAND_CURSOR);
 
 	/**
 	 * 
 	 */
 	protected mxGraphComponent graphComponent;
+
+	/**
+	 * Holds the event source.
+	 */
+	protected mxEventSource eventSource = new mxEventSource(this);
+
+	/**
+	 * 
+	 */
+	protected mxConnectPreview connectPreview;
 
 	/**
 	 * Specifies the icon to be used for creating new connections. If this is
@@ -93,7 +106,22 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	protected transient Point start, current;
+	protected boolean enabled = true;
+
+	/**
+	 * 
+	 */
+	protected transient Point first;
+
+	/**
+	 * 
+	 */
+	protected transient boolean active = false;
+
+	/**
+	 * 
+	 */
+	protected transient Rectangle bounds;
 
 	/**
 	 * 
@@ -109,39 +137,6 @@ public class mxConnectionHandler extends mxMouseControl
 	 * 
 	 */
 	protected transient String error;
-
-	/**
-	 * 
-	 */
-	protected transient JPanel preview = new JPanel()
-	{
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -6401041861368362818L;
-
-		public void paint(Graphics g)
-		{
-			super.paint(g);
-			((Graphics2D) g).setStroke(mxConstants.PREVIEW_STROKE);
-
-			if (start != null && current != null)
-			{
-				if (marker.hasValidState() || createTarget
-						|| graphComponent.getGraph().isAllowDanglingEdges())
-				{
-					g.setColor(mxConstants.DEFAULT_VALID_COLOR);
-				}
-				else
-				{
-					g.setColor(mxConstants.DEFAULT_INVALID_COLOR);
-				}
-
-				g.drawLine(start.x - getX(), start.y - getY(), current.x
-						- getX(), current.y - getY());
-			}
-		}
-	};
 
 	/**
 	 * 
@@ -162,18 +157,36 @@ public class mxConnectionHandler extends mxMouseControl
 	{
 		this.graphComponent = graphComponent;
 
+		// Installs the paint handler
+		graphComponent.addListener(mxEvent.AFTER_PAINT, new mxIEventListener()
+		{
+			public void invoke(Object sender, mxEventObject evt)
+			{
+				Graphics g = (Graphics) evt.getProperty("g");
+				paint(g);
+			}
+		});
+
+		connectPreview = createConnectPreview();
+
 		mxGraphControl graphControl = graphComponent.getGraphControl();
-		graphControl.add(this, 0);
 		graphControl.addMouseListener(this);
 		graphControl.addMouseMotionListener(this);
 
-		mxGraphView view = graphComponent.getGraph().getView();
-		view.addListener(mxEvent.SCALE, resetHandler);
-		view.addListener(mxEvent.TRANSLATE, resetHandler);
-		view.addListener(mxEvent.SCALE_AND_TRANSLATE, resetHandler);
+		// Installs the graph listeners and keeps them in sync
+		addGraphListeners(graphComponent.getGraph());
 
-		mxIGraphModel model = graphComponent.getGraph().getModel();
-		model.addListener(mxEvent.CHANGE, resetHandler);
+		graphComponent.addPropertyChangeListener(new PropertyChangeListener()
+		{
+			public void propertyChange(PropertyChangeEvent evt)
+			{
+				if (evt.getPropertyName().equals("graph"))
+				{
+					removeGraphListeners((mxGraph) evt.getOldValue());
+					addGraphListeners((mxGraph) evt.getNewValue());
+				}
+			}
+		});
 
 		marker = new mxCellMarker(graphComponent)
 		{
@@ -230,8 +243,7 @@ public class mxConnectionHandler extends mxMouseControl
 
 			// Overrides to use marker color only in highlight mode or for
 			// target selection
-			@Override
-			public Color getMarkerColor(MouseEvent e, mxCellState state,
+			protected Color getMarkerColor(MouseEvent e, mxCellState state,
 					boolean isValid)
 			{
 				return (isHighlighting() || isConnecting()) ? super
@@ -252,7 +264,63 @@ public class mxConnectionHandler extends mxMouseControl
 		};
 
 		marker.setHotspotEnabled(true);
-		setCursor(DEFAULT_CURSOR);
+	}
+
+	/**
+	 * Installs the listeners to update the handles after any changes.
+	 */
+	protected void addGraphListeners(mxGraph graph)
+	{
+		// LATER: Install change listener for graph model, view
+		if (graph != null)
+		{
+			mxGraphView view = graph.getView();
+			view.addListener(mxEvent.SCALE, resetHandler);
+			view.addListener(mxEvent.TRANSLATE, resetHandler);
+			view.addListener(mxEvent.SCALE_AND_TRANSLATE, resetHandler);
+
+			graph.getModel().addListener(mxEvent.CHANGE, resetHandler);
+		}
+	}
+
+	/**
+	 * Removes all installed listeners.
+	 */
+	protected void removeGraphListeners(mxGraph graph)
+	{
+		if (graph != null)
+		{
+			mxGraphView view = graph.getView();
+			view.removeListener(resetHandler, mxEvent.SCALE);
+			view.removeListener(resetHandler, mxEvent.TRANSLATE);
+			view.removeListener(resetHandler, mxEvent.SCALE_AND_TRANSLATE);
+
+			graph.getModel().removeListener(resetHandler, mxEvent.CHANGE);
+		}
+	}
+
+	/**
+	 * 
+	 */
+	protected mxConnectPreview createConnectPreview()
+	{
+		return new mxConnectPreview(graphComponent);
+	}
+
+	/**
+	 * 
+	 */
+	public mxConnectPreview getConnectPreview()
+	{
+		return connectPreview;
+	}
+
+	/**
+	 * 
+	 */
+	public void setConnectPreview(mxConnectPreview value)
+	{
+		connectPreview = value;
 	}
 
 	/**
@@ -261,15 +329,39 @@ public class mxConnectionHandler extends mxMouseControl
 	 */
 	public boolean isConnecting()
 	{
-		return start != null && preview != null && preview.isVisible();
+		return connectPreview.isActive();
 	}
 
+	/**
+	 * 
+	 */
+	public boolean isActive()
+	{
+		return active;
+	}
+	
 	/**
 	 * Returns true if no connectIcon is specified and handleEnabled is false.
 	 */
 	public boolean isHighlighting()
 	{
 		return connectIcon == null && !handleEnabled;
+	}
+
+	/**
+	 * 
+	 */
+	public boolean isEnabled()
+	{
+		return enabled;
+	}
+
+	/**
+	 * 
+	 */
+	public void setEnabled(boolean value)
+	{
+		enabled = value;
 	}
 
 	/**
@@ -283,17 +375,17 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public void setKeepOnTop(boolean keepOnTop)
+	public void setKeepOnTop(boolean value)
 	{
-		this.keepOnTop = keepOnTop;
+		keepOnTop = value;
 	}
 
 	/**
 	 * 
 	 */
-	public void setConnectIcon(ImageIcon connectIcon)
+	public void setConnectIcon(ImageIcon value)
 	{
-		this.connectIcon = connectIcon;
+		connectIcon = value;
 	}
 
 	/**
@@ -307,9 +399,9 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public void setHandleEnabled(boolean handleEnabled)
+	public void setHandleEnabled(boolean value)
 	{
-		this.handleEnabled = handleEnabled;
+		handleEnabled = value;
 	}
 
 	/**
@@ -323,9 +415,9 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public void setHandleSize(int size)
+	public void setHandleSize(int value)
 	{
-		this.handleSize = size;
+		handleSize = value;
 	}
 
 	/**
@@ -347,17 +439,17 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public void setMarker(mxCellMarker marker)
+	public void setMarker(mxCellMarker value)
 	{
-		this.marker = marker;
+		marker = value;
 	}
 
 	/**
 	 * 
 	 */
-	public void setCreateTarget(boolean createTarget)
+	public void setCreateTarget(boolean value)
 	{
-		this.createTarget = createTarget;
+		createTarget = value;
 	}
 
 	/**
@@ -371,9 +463,9 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public void setSelect(boolean select)
+	public void setSelect(boolean value)
 	{
-		this.select = select;
+		select = value;
 	}
 
 	/**
@@ -389,124 +481,13 @@ public class mxConnectionHandler extends mxMouseControl
 	 */
 	public void reset()
 	{
-		if (preview.getParent() != null)
-		{
-			preview.setVisible(false);
-			preview.getParent().remove(preview);
-		}
-
-		setVisible(false);
+		connectPreview.stop(false);
+		setBounds(null);
 		marker.reset();
+		active = false;
 		source = null;
-		start = null;
+		first = null;
 		error = null;
-	}
-
-	/**
-	 * 
-	 * @param source
-	 * @param target
-	 * @param e
-	 */
-	protected void connect(Object source, Object target, MouseEvent e)
-	{
-		mxGraph graph = graphComponent.getGraph();
-		mxIGraphModel model = graph.getModel();
-
-		Object newTarget = null;
-		Object edge = null;
-
-		if (target == null && createTarget)
-		{
-			newTarget = createTargetVertex(e, source);
-			target = newTarget;
-		}
-
-		if (target != null || graph.isAllowDanglingEdges())
-		{
-			model.beginUpdate();
-			try
-			{
-				Object dropTarget = graph.getDropTarget(
-						new Object[] { newTarget }, e.getPoint(),
-						graphComponent.getCellAt(e.getX(), e.getY()));
-
-				if (newTarget != null)
-				{
-					// Disables edges as drop targets if the target cell was created
-					if (dropTarget == null
-							|| !graph.getModel().isEdge(dropTarget))
-					{
-						mxCellState pstate = graph.getView().getState(
-								dropTarget);
-
-						if (pstate != null)
-						{
-							mxGeometry geo = model.getGeometry(newTarget);
-
-							mxPoint origin = pstate.getOrigin();
-							geo.setX(geo.getX() - origin.getX());
-							geo.setY(geo.getY() - origin.getY());
-						}
-					}
-					else
-					{
-						dropTarget = graph.getDefaultParent();
-					}
-
-					graph.addCells(new Object[] { newTarget }, dropTarget);
-				}
-
-				Object parent = graph.getDefaultParent();
-
-				if (model.getParent(source) == model.getParent(target))
-				{
-					parent = model.getParent(source);
-				}
-
-				edge = insertEdge(parent, null, "", source, target);
-
-				if (edge != null)
-				{
-					// Makes sure the edge has a non-null, relative geometry
-					mxGeometry geo = model.getGeometry(edge);
-
-					if (geo == null)
-					{
-						geo = new mxGeometry();
-						geo.setRelative(true);
-
-						model.setGeometry(edge, geo);
-					}
-
-					if (target == null)
-					{
-						mxPoint pt = graphComponent.getPointForEvent(e);
-						geo.setTerminalPoint(pt, false);
-					}
-				}
-
-			}
-			finally
-			{
-				model.endUpdate();
-			}
-		}
-
-		if (select)
-		{
-			graph.setSelectionCell(edge);
-		}
-	}
-
-	/**
-	 * Creates, inserts and returns a new edge using mxGraph.insertEdge. 
-	 */
-	protected Object insertEdge(Object parent, String id, Object value,
-			Object source, Object target)
-	{
-		return graphComponent.getGraph().insertEdge(parent, id, value, source,
-				target);
 	}
 
 	/**
@@ -563,8 +544,8 @@ public class mxConnectionHandler extends mxMouseControl
 			return "";
 		}
 
-		return graphComponent.getGraph().getEdgeValidationError(null, source,
-				target);
+		return graphComponent.getGraph().getEdgeValidationError(
+				connectPreview.getPreviewState().getCell(), source, target);
 	}
 
 	/**
@@ -572,27 +553,81 @@ public class mxConnectionHandler extends mxMouseControl
 	 */
 	public void mousePressed(MouseEvent e)
 	{
-		if (!graphComponent.isForceMarqueeEvent(e) &&
-			!graphComponent.isPanningEvent(e))
+		if (!graphComponent.isForceMarqueeEvent(e)
+				&& !graphComponent.isPanningEvent(e)
+				&& !e.isPopupTrigger()
+				&& graphComponent.isEnabled()
+				&& isEnabled()
+				&& !e.isConsumed()
+				&& ((isHighlighting() && marker.hasValidState()) || (!isHighlighting()
+						&& bounds != null && bounds.contains(e.getPoint()))))
 		{
-			// Subhandles in the graph handler have precedence over this
-			// if keepOnTop is false, otherwise this has precendence
-			if (!e.isConsumed() && source != null && !e.isPopupTrigger())
+			start(e, marker.getValidState());
+			e.consume();
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public void start(MouseEvent e, mxCellState state)
+	{
+		first = e.getPoint();
+		connectPreview.start(e, state, "");
+	}
+
+	/**
+	 * 
+	 */
+	public void mouseMoved(MouseEvent e)
+	{
+		mouseDragged(e);
+
+		if (isHighlighting() && !marker.hasValidState())
+		{
+			source = null;
+		}
+
+		if (!isHighlighting() && source != null)
+		{
+			int imgWidth = handleSize;
+			int imgHeight = handleSize;
+
+			if (connectIcon != null)
 			{
-				if ((isHighlighting() && marker.hasValidState())
-						|| (!isHighlighting() && getBounds().contains(
-								e.getPoint())))
+				imgWidth = connectIcon.getIconWidth();
+				imgHeight = connectIcon.getIconHeight();
+			}
+
+			int x = (int) source.getCenterX() - imgWidth / 2;
+			int y = (int) source.getCenterY() - imgHeight / 2;
+
+			if (graphComponent.getGraph().isSwimlane(source.getCell()))
+			{
+				mxRectangle size = graphComponent.getGraph().getStartSize(
+						source.getCell());
+
+				if (size.getWidth() > 0)
 				{
-					start = e.getPoint();
-					preview.setOpaque(false);
-					preview.setVisible(false);
-					graphComponent.getGraphControl().add(preview, 0);
-					getParent().setComponentZOrder(this, 0);
-					graphComponent.getGraphControl().setCursor(DEFAULT_CURSOR);
-					marker.reset();
-					e.consume();
+					x = (int) (source.getX() + size.getWidth() / 2 - imgWidth / 2);
+				}
+				else
+				{
+					y = (int) (source.getY() + size.getHeight() / 2 - imgHeight / 2);
 				}
 			}
+
+			setBounds(new Rectangle(x, y, imgWidth, imgHeight));
+		}
+		else
+		{
+			setBounds(null);
+		}
+
+		if (source != null && (bounds == null || bounds.contains(e.getPoint())))
+		{
+			graphComponent.getGraphControl().setCursor(CONNECT_CURSOR);
+			e.consume();
 		}
 	}
 
@@ -601,91 +636,37 @@ public class mxConnectionHandler extends mxMouseControl
 	 */
 	public void mouseDragged(MouseEvent e)
 	{
-		if (!e.isConsumed() && source != null && start != null)
+		if (!e.isConsumed() && graphComponent.isEnabled() && isEnabled())
 		{
-			//System.out.println("mouse dragged in mxConnectionHandler");
-			int dx = e.getX() - start.x;
-			int dy = e.getY() - start.y;
-
-			if (!preview.isVisible() && graphComponent.isSignificant(dx, dy))
+			// Activates the handler
+			if (!active && first != null)
 			{
-				preview.setVisible(true);
-				marker.reset();
-			}
-
-			current = e.getPoint();
-			mxGraph graph = graphComponent.getGraph();
-			mxGraphView view = graph.getView();
-			double scale = view.getScale();
-			mxPoint trans = view.getTranslate();
-
-			current.x = (int) Math.round((graph.snap(current.x / scale
-					- trans.getX()) + trans.getX())
-					* scale);
-			current.y = (int) Math.round((graph.snap(current.y / scale
-					- trans.getY()) + trans.getY())
-					* scale);
-
-			marker.process(e);
-
-			// Checks if a color was used to highlight the state
-			mxCellState state = marker.getValidState();
-
-			if (state != null)
-			{
-				current.x = (int) state.getCenterX();
-				current.y = (int) state.getCenterY();
-
-				// Computes the target perimeter point
-				mxPerimeterFunction targetPerimeter = view
-						.getPerimeterFunction(state);
-
-				if (targetPerimeter != null)
+				double dx = Math.abs(first.getX() - e.getX());
+				double dy = Math.abs(first.getY() - e.getY());
+				int tol = graphComponent.getTolerance();
+				
+				if (dx > tol || dy > tol)
 				{
-					mxPoint next = new mxPoint(source.getCenterX(), source
-							.getCenterY());
-					mxPoint tmp = targetPerimeter.apply(view
-							.getPerimeterBounds(state, null, false), null,
-							state, false, next);
-
-					if (tmp != null)
-					{
-						current = tmp.getPoint();
-					}
+					active = true;
 				}
 			}
-
-			// Computes the source perimeter point
-			mxPerimeterFunction sourcePerimeter = view
-					.getPerimeterFunction(source);
-
-			if (sourcePerimeter != null)
+			
+			if (e.getButton() == 0 || (isActive() && connectPreview.isActive()))
 			{
-				mxPoint pt = sourcePerimeter.apply(view.getPerimeterBounds(
-						source, null, true), null, source, true, new mxPoint(
-						current));
-
-				if (pt != null)
+				mxCellState state = marker.process(e);
+	
+				if (connectPreview.isActive())
 				{
-					start = pt.getPoint();
+					connectPreview.update(e, marker.getValidState(), e.getX(),
+							e.getY());
+					setBounds(null);
+					e.consume();
+				}
+				else
+				{
+					source = state;
 				}
 			}
-			else
-			{
-				start = new Point((int) Math.round(source.getCenterX()),
-						(int) Math.round(source.getCenterY()));
-			}
-
-			// Hides the connect icon or handle
-			setVisible(false);
-
-			// Updates the bounds of the previewed line
-			Rectangle bounds = new Rectangle(current);
-			bounds.add(start);
-			bounds.grow(1, 1);
-			preview.setBounds(bounds);
-
-			e.consume();
 		}
 	}
 
@@ -694,9 +675,8 @@ public class mxConnectionHandler extends mxMouseControl
 	 */
 	public void mouseReleased(MouseEvent e)
 	{
-		if (!e.isConsumed() && isConnecting())
+		if (isActive())
 		{
-			// Does not connect if there is an error
 			if (error != null)
 			{
 				if (error.length() > 0)
@@ -704,19 +684,85 @@ public class mxConnectionHandler extends mxMouseControl
 					JOptionPane.showMessageDialog(graphComponent, error);
 				}
 			}
-			else if (source != null)
+			else if (first != null)
 			{
-				Object src = source.getCell();
-				Object trg = (marker.hasValidState()) ? marker.getValidState()
-						.getCell() : null;
-				connect(src, trg, e);
+				mxGraph graph = graphComponent.getGraph();
+				double dx = first.getX() - e.getX();
+				double dy = first.getY() - e.getY();
+	
+				if (connectPreview.isActive()
+						&& (marker.hasValidState() || isCreateTarget() || graph
+								.isAllowDanglingEdges()))
+				{
+					graph.getModel().beginUpdate();
+	
+					try
+					{
+						Object dropTarget = null;
+	
+						if (!marker.hasValidState() && isCreateTarget())
+						{
+							Object vertex = createTargetVertex(e, source.getCell());
+							dropTarget = graph.getDropTarget(
+									new Object[] { vertex }, e.getPoint(),
+									graphComponent.getCellAt(e.getX(), e.getY()));
+	
+							if (vertex != null)
+							{
+								// Disables edges as drop targets if the target cell was created
+								if (dropTarget == null
+										|| !graph.getModel().isEdge(dropTarget))
+								{
+									mxCellState pstate = graph.getView().getState(
+											dropTarget);
+	
+									if (pstate != null)
+									{
+										mxGeometry geo = graph.getModel()
+												.getGeometry(vertex);
+	
+										mxPoint origin = pstate.getOrigin();
+										geo.setX(geo.getX() - origin.getX());
+										geo.setY(geo.getY() - origin.getY());
+									}
+								}
+								else
+								{
+									dropTarget = graph.getDefaultParent();
+								}
+	
+								graph.addCells(new Object[] { vertex }, dropTarget);
+							}
+	
+							// FIXME: Here we pre-create the state for the vertex to be
+							// inserted in order to invoke update in the connectPreview.
+							// This means we have a cell state which should be created
+							// after the model.update, so this should be fixed.
+							mxCellState targetState = graph.getView().getState(
+									vertex, true);
+							connectPreview.update(e, targetState, e.getX(),
+									e.getY());
+						}
+	
+						Object cell = connectPreview.stop(
+								graphComponent.isSignificant(dx, dy), e);
+	
+						if (cell != null)
+						{
+							graphComponent.getGraph().setSelectionCell(cell);
+							eventSource.fireEvent(new mxEventObject(
+									mxEvent.CONNECT, "cell", cell, "event", e,
+									"target", dropTarget));
+						}
+	
+						e.consume();
+					}
+					finally
+					{
+						graph.getModel().endUpdate();
+					}
+				}
 			}
-
-			e.consume();
-		}
-		else if (source != null && !e.isPopupTrigger())
-		{
-			graphComponent.selectCellForEvent(source.getCell(), e);
 		}
 
 		reset();
@@ -725,65 +771,57 @@ public class mxConnectionHandler extends mxMouseControl
 	/**
 	 * 
 	 */
-	public void mouseMoved(MouseEvent e)
+	public void setBounds(Rectangle value)
 	{
-		if (!e.isConsumed() && graphComponent.isEnabled() && isEnabled())
+		if ((bounds == null && value != null)
+				|| (bounds != null && value == null)
+				|| (bounds != null && value != null && !bounds.equals(value)))
 		{
-			//System.out.println("mouse moved in mxConnectionHandler");
-			source = marker.process(e);
+			Rectangle tmp = bounds;
 
-			if (isHighlighting() && !marker.hasValidState())
+			if (tmp != null)
 			{
-				source = null;
-			}
-
-			if (source != null)
-			{
-				if (isHighlighting())
+				if (value != null)
 				{
-					// Displays the connect icon on the complete highlighted area
-					setBounds(source.getRectangle());
-				}
-				else
-				{
-					int imgWidth = handleSize;
-					int imgHeight = handleSize;
-
-					if (connectIcon != null)
-					{
-						imgWidth = connectIcon.getIconWidth();
-						imgHeight = connectIcon.getIconHeight();
-					}
-
-					int x = (int) source.getCenterX() - imgWidth / 2;
-					int y = (int) source.getCenterY() - imgHeight / 2;
-
-					if (graphComponent.getGraph().isSwimlane(source.getCell()))
-					{
-						mxRectangle size = graphComponent.getGraph()
-								.getStartSize(source.getCell());
-
-						if (size.getWidth() > 0)
-						{
-							x = (int) (source.getX() + size.getWidth() / 2 - imgWidth / 2);
-						}
-						else
-						{
-							y = (int) (source.getY() + size.getHeight() / 2 - imgHeight / 2);
-						}
-					}
-
-					setBounds(x, y, imgWidth, imgHeight);
-				}
-
-				if (keepOnTop)
-				{
-					getParent().setComponentZOrder(this, 0);
+					tmp.add(value);
 				}
 			}
+			else
+			{
+				tmp = value;
+			}
 
-			setVisible(source != null);
+			bounds = value;
+
+			if (tmp != null)
+			{
+				graphComponent.getGraphControl().repaint(tmp);
+			}
 		}
+	}
+
+	/**
+	 * Adds the given event listener.
+	 */
+	public void addListener(String eventName, mxIEventListener listener)
+	{
+		eventSource.addListener(eventName, listener);
+	}
+
+	/**
+	 * Removes the given event listener.
+	 */
+	public void removeListener(mxIEventListener listener)
+	{
+		eventSource.removeListener(listener);
+	}
+
+	/**
+	 * Removes the given event listener for the specified event name.
+	 */
+	public void removeListener(mxIEventListener listener, String eventName)
+	{
+		eventSource.removeListener(listener, eventName);
 	}
 
 	/**
@@ -791,22 +829,26 @@ public class mxConnectionHandler extends mxMouseControl
 	 */
 	public void paint(Graphics g)
 	{
-		if (start == null)
+		if (bounds != null)
 		{
 			if (connectIcon != null)
 			{
-				g.drawImage(connectIcon.getImage(), 0, 0, getWidth(),
-						getHeight(), this);
+				g.drawImage(connectIcon.getImage(), bounds.x, bounds.y,
+						bounds.width, bounds.height, null);
 			}
 			else if (handleEnabled)
 			{
 				g.setColor(Color.BLACK);
-				g.draw3DRect(0, 0, getWidth() - 1, getHeight() - 1, true);
+				g.draw3DRect(bounds.x, bounds.y, bounds.width - 1,
+						bounds.height - 1, true);
 				g.setColor(Color.GREEN);
-				g.fill3DRect(1, 1, getWidth() - 2, getHeight() - 2, true);
+				g.fill3DRect(bounds.x + 1, bounds.y + 1, bounds.width - 2,
+						bounds.height - 2, true);
 				g.setColor(Color.BLUE);
-				g.drawRect(getWidth() / 2 - 1, getHeight() / 2 - 1, 1, 1);
+				g.drawRect(bounds.x + bounds.width / 2 - 1, bounds.y
+						+ bounds.height / 2 - 1, 1, 1);
 			}
 		}
 	}
+
 }

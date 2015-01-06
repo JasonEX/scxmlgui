@@ -1,6 +1,5 @@
 /**
- * $Id: mxImageCanvas.java,v 1.5 2010/01/13 10:43:46 gaudenz Exp $
- * Copyright (c) 2007, Gaudenz Alder
+ * Copyright (c) 2007-2010, Gaudenz Alder, David Benson
  */
 package com.mxgraph.canvas;
 
@@ -8,15 +7,13 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
-import java.util.List;
-import java.util.Map;
 
-import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.view.mxCellState;
 
 /**
  * An implementation of a canvas that uses Graphics2D for painting. To use an
- * image canvas for an existing graphics canvas and create an dimage the
+ * image canvas for an existing graphics canvas and create an image the
  * following code is used:
  * 
  * <code>BufferedImage image = mxCellRenderer.createBufferedImage(graph, cells, 1, Color.white, true, null, canvas);</code> 
@@ -51,7 +48,7 @@ public class mxImageCanvas implements mxICanvas
 
 		if (image != null)
 		{
-			Graphics2D g = (Graphics2D) image.createGraphics();
+			Graphics2D g = image.createGraphics();
 			mxUtils.setAntiAlias(g, antiAlias, true);
 			canvas.setGraphics(g);
 		}
@@ -76,27 +73,17 @@ public class mxImageCanvas implements mxICanvas
 	/**
 	 * 
 	 */
-	public Object drawEdge(List<mxPoint> pts, Map<String, Object> style)
+	public Object drawCell(mxCellState state)
 	{
-		return canvas.drawEdge(pts, style);
+		return canvas.drawCell(state);
 	}
 
 	/**
 	 * 
 	 */
-	public Object drawLabel(String label, int x, int y, int w, int h,
-			Map<String, Object> style, boolean isHtml)
+	public Object drawLabel(String label, mxCellState state, boolean html)
 	{
-		return canvas.drawLabel(label, x, y, w, h, style, isHtml);
-	}
-
-	/**
-	 * 
-	 */
-	public Object drawVertex(int x, int y, int w, int h,
-			Map<String, Object> style)
-	{
-		return canvas.drawVertex(x, y, w, h, style);
+		return canvas.drawLabel(label, state, html);
 	}
 
 	/**
@@ -138,7 +125,11 @@ public class mxImageCanvas implements mxICanvas
 	{
 		BufferedImage tmp = image;
 
-		canvas.getGraphics().dispose();
+		if (canvas.getGraphics() != null)
+		{
+			canvas.getGraphics().dispose();
+		}
+		
 		canvas.setGraphics(previousGraphics);
 
 		previousGraphics = null;

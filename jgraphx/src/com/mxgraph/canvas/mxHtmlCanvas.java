@@ -1,5 +1,4 @@
 /**
- * $Id: mxHtmlCanvas.java,v 1.27 2010/01/13 10:43:46 gaudenz Exp $
  * Copyright (c) 2007, Gaudenz Alder
  */
 package com.mxgraph.canvas;
@@ -14,7 +13,9 @@ import org.w3c.dom.Node;
 
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxPoint;
+import com.mxgraph.util.mxRectangle;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.view.mxCellState;
 
 /**
  * An implementation of a canvas that uses HTML for painting.
@@ -81,40 +82,55 @@ public class mxHtmlCanvas extends mxBasicCanvas
 
 	/*
 	 * (non-Javadoc)
-	 * @see com.mxgraph.canvas.mxICanvas#drawVertex(int, int, int, int, java.util.Hashtable)
+	 * @see com.mxgraph.canvas.mxICanvas#drawCell()
 	 */
-	public Object drawVertex(int x, int y, int w, int h,
-			Map<String, Object> style)
+	public Object drawCell(mxCellState state)
 	{
-		x += translate.x;
-		y += translate.y;
-
-		if (!mxUtils.getString(style, mxConstants.STYLE_SHAPE, "").equals(
-				mxConstants.SHAPE_SWIMLANE))
+		Map<String, Object> style = state.getStyle();
+		
+		if (state.getAbsolutePointCount() > 1)
 		{
-			drawShape(x, y, w, h, style);
+			List<mxPoint> pts = state.getAbsolutePoints();
+
+			// Transpose all points by cloning into a new array
+			pts = mxUtils.translatePoints(pts, translate.x, translate.y);
+			drawLine(pts, style);
 		}
 		else
 		{
-			int start = (int) Math.round(mxUtils.getInt(style,
-					mxConstants.STYLE_STARTSIZE, mxConstants.DEFAULT_STARTSIZE)
-					* scale);
+			int x = (int) state.getX() + translate.x;
+			int y = (int) state.getY() + translate.y;
+			int w = (int) state.getWidth();
+			int h = (int) state.getHeight();
 
-			// Removes some styles to draw the content area
-			Map<String, Object> cloned = new Hashtable<String, Object>(
-					style);
-			cloned.remove(mxConstants.STYLE_FILLCOLOR);
-			cloned.remove(mxConstants.STYLE_ROUNDED);
-
-			if (mxUtils.isTrue(style, mxConstants.STYLE_HORIZONTAL, true))
+			if (!mxUtils.getString(style, mxConstants.STYLE_SHAPE, "").equals(
+					mxConstants.SHAPE_SWIMLANE))
 			{
-				drawShape(x, y, w, start, style);
-				drawShape(x, y + start, w, h - start, cloned);
+				drawShape(x, y, w, h, style);
 			}
 			else
 			{
-				drawShape(x, y, start, h, style);
-				drawShape(x + start, y, w - start, h, cloned);
+				int start = (int) Math.round(mxUtils.getInt(style,
+						mxConstants.STYLE_STARTSIZE,
+						mxConstants.DEFAULT_STARTSIZE)
+						* scale);
+
+				// Removes some styles to draw the content area
+				Map<String, Object> cloned = new Hashtable<String, Object>(
+						style);
+				cloned.remove(mxConstants.STYLE_FILLCOLOR);
+				cloned.remove(mxConstants.STYLE_ROUNDED);
+
+				if (mxUtils.isTrue(style, mxConstants.STYLE_HORIZONTAL, true))
+				{
+					drawShape(x, y, w, start, style);
+					drawShape(x, y + start, w, h - start, cloned);
+				}
+				else
+				{
+					drawShape(x, y, start, h, style);
+					drawShape(x + start, y, w - start, h, cloned);
+				}
 			}
 		}
 
@@ -123,28 +139,19 @@ public class mxHtmlCanvas extends mxBasicCanvas
 
 	/*
 	 * (non-Javadoc)
-	 * @see com.mxgraph.canvas.mxICanvas#drawEdge(java.util.List, java.util.Hashtable)
+	 * @see com.mxgraph.canvas.mxICanvas#drawLabel()
 	 */
-	public Object drawEdge(List<mxPoint> pts, Map<String, Object> style)
+	public Object drawLabel(String label, mxCellState state, boolean html)
 	{
-		// Transpose all points by cloning into a new array
-		pts = mxUtils.translatePoints(pts, translate.x, translate.y);
-		drawLine(pts, style);
+		mxRectangle bounds = state.getLabelBounds();
 
-		return null;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see com.mxgraph.canvas.mxICanvas#drawLabel(java.lang.String, int, int, int, int, java.util.Hashtable, boolean)
-	 */
-	public Object drawLabel(String label, int x, int y, int w, int h,
-			Map<String, Object> style, boolean isHtml)
-	{
-		if (drawLabels)
+		if (drawLabels && bounds != null)
 		{
-			x += translate.x;
-			y += translate.y;
+			int x = (int) bounds.getX() + translate.x;
+			int y = (int) bounds.getY() + translate.y;
+			int w = (int) bounds.getWidth();
+			int h = (int) bounds.getHeight();
+			Map<String, Object> style = state.getStyle();
 
 			return drawText(label, x, y, w, h, style);
 		}
