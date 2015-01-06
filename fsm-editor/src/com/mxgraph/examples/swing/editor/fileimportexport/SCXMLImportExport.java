@@ -451,7 +451,6 @@ public class SCXMLImportExport implements IImportExport {
 			
 			SCXMLNode node = buildAndAddBasicNodeAsChildOf(nodeIDString,
 					nodeNameString, parentNode, false);
-			// TODO: unfinished code check
 			if ((!isHistory) || (historyType == null)) {
 				node.setParallel(isParallel);
 				Node isInitial = null;

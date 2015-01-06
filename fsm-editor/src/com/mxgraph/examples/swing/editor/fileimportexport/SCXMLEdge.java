@@ -294,9 +294,21 @@ public class SCXMLEdge implements Serializable {
 	}
 	
 	public String getStyle(mxCell cell) {
-		boolean cycle=(cell==null)?isCycle():(cell.getTarget()==cell.getSource());
 		String ret="straight;strokeColor=#888888;";
-		if (cycle && (!isCycleWithTarget())) ret+="strokeWidth=3;dashed=1;";
+		
+		// Patch for special legend requirement
+		// Yuqian YANG @ LUSIS
+		// 01/06/2015
+		// Identify sub-FSM transition by detect "exit" attribute
+//		boolean cycle=(cell==null)?isCycle():(cell.getTarget()==cell.getSource());
+//		if (cycle && (!isCycleWithTarget())) ret+="strokeWidth=3;"; 
+		
+		SCXMLEdge edge = null;
+		if (cell.isEdge())
+			edge =(SCXMLEdge)cell.getValue();
+		if (edge != null && edge.getEvent() != null && !edge.getEvent().isEmpty())
+			ret += "dashed=1;";
+		
 		return ret;
 	}
 }
