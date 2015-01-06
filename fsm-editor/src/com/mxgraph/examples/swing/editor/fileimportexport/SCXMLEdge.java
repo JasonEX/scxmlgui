@@ -299,7 +299,8 @@ public class SCXMLEdge implements Serializable {
 		// Patch for special legend requirement
 		// Yuqian YANG @ LUSIS
 		// 01/06/2015
-		// Identify sub-FSM transition by detect "exit" attribute
+		// Display dash line for event based transition
+		
 //		boolean cycle=(cell==null)?isCycle():(cell.getTarget()==cell.getSource());
 //		if (cycle && (!isCycleWithTarget())) ret+="strokeWidth=3;"; 
 		

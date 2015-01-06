@@ -632,7 +632,14 @@ public class SCXMLGraph extends mxGraph
 				return node.getID();
 		} else if (v instanceof SCXMLEdge) {
 			SCXMLEdge edge=((SCXMLEdge)v);
-			return edge.getEvent();
+			// Patch for special legend requirement
+			// Yuqian YANG @ LUSIS
+			// 01/06/2015
+			// Display condition or event
+			if (edge.getCondition() != null && !edge.getCondition().isEmpty())
+				return edge.getCondition();
+			else
+				return edge.getEvent();
 		} else {
 			return "";
 		}
