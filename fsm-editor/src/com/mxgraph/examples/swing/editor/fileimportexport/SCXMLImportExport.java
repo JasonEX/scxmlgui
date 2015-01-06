@@ -168,19 +168,19 @@ public class SCXMLImportExport implements IImportExport {
 	
 	private SCXMLNode handleSCXMLNode(Node n, SCXMLNode pn, Boolean isParallel, Boolean isHistory) throws Exception {
 		NamedNodeMap att = n.getAttributes();
-		Node nodeID = att.getNamedItem("id");
-		String nodeIDString=null,nodeNameString=null;
-		if (nodeID==null) {
-			if (n.getNodeName().toLowerCase().equals(SCXMLNode.ROOTID.toLowerCase())) {
-				nodeIDString=SCXMLNode.ROOTID;
-			} else {
-				nodeIDString="";
-			}
-		} else {
-			nodeIDString=StringUtils.cleanupSpaces(nodeID.getNodeValue());
-		}
+//		Node nodeID = att.getNamedItem("id");
+		String nodeIDString = getSCXMLIDStringFromNode(n), nodeNameString = null;
+//		if (nodeID == null) {
+//			if (isRoot(n)) {
+//				nodeIDString = SCXMLNode.ROOTID;
+//			} else {
+//				nodeIDString = "";
+//			}
+//		} else {
+//			nodeIDString = StringUtils.cleanupSpaces(nodeID.getNodeValue());
+//		}
 		Node nodeName = att.getNamedItem("name");
-		nodeNameString=(nodeName==null)?null:StringUtils.cleanupSpaces(nodeName.getNodeValue());
+		nodeNameString = (nodeName == null) ? null : StringUtils.cleanupSpaces(nodeName.getNodeValue());
 		
 		Node nodeHistoryType = att.getNamedItem("type");
 		String nodeHistoryTypeString=(nodeHistoryType==null)?"shallow":StringUtils.cleanupSpaces(nodeHistoryType.getNodeValue());
@@ -190,7 +190,7 @@ public class SCXMLImportExport implements IImportExport {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		SCXMLNode node=buildAndAddBasicNodeAsChildOf(nodeIDString,nodeNameString,pn,false);
+		SCXMLNode node = buildAndAddBasicNodeAsChildOf(nodeIDString,nodeNameString,pn,false);
 		if ((!isHistory) || (historyType==null)) {
 			node.setParallel(isParallel);
 			Node isInitial=null;
@@ -279,7 +279,7 @@ public class SCXMLImportExport implements IImportExport {
 				if (subFSMNode != null) {
 //					addCommentsAndResetCollectorTo(subFSMNode);
 					SCXMLEdge exitEdge = addEdge(getSubFSMExitEdgeFromTransition(pn,n));
-//					addCommentsAndResetCollectorTo(exitEdge);
+					addCommentsAndResetCollectorTo(exitEdge);
 				}
 			} else if (name.equals("final")) {
 				SCXMLNode node = handleSCXMLNode(n,pn,isParallel,false);
@@ -369,72 +369,127 @@ public class SCXMLImportExport implements IImportExport {
 		return root;
 	}
 	
+	// Patch for sub-FSM compatibility
+	// Yuqian YANG @ LUSIS
+	// 01/06/2015
+	// Determine if a node is root SCXMLNode
+	private boolean isRoot(Node node) {
+		return node.getNodeType() == Node.ELEMENT_NODE && node.getNodeName().toLowerCase().equalsIgnoreCase(SCXMLNode.ROOTID);
+	}
+	
+	// Patch for sub-FSM compatibility
+	// Yuqian YANG @ LUSIS
+	// 01/06/2015
+	// Get SCXMLNode from node, return null if not added to storage
+	private String getSCXMLIDStringFromNode(Node node) {
+		Node nodeID = node.getAttributes().getNamedItem("id");
+		String nodeIDString = null;
+		if (nodeID == null) {
+			if (isRoot(node)) {
+				nodeIDString = SCXMLNode.ROOTID;
+			} else {
+				nodeIDString = "";
+			}
+		} else {
+			nodeIDString = StringUtils.cleanupSpaces(nodeID.getNodeValue());
+		}
+		return nodeIDString;
+	}
+	
+	// Patch for sub-FSM compatibility
+	// Yuqian YANG @ LUSIS
+	// 01/06/2015
+	// Get SCXMLNode from node, return null if not added to storage
+	private SCXMLNode getSCXMLNodeFromNode(Node node) {
+		return scxmlID2nodes.get(getSCXMLIDStringFromNode(node));
+	}
 	
 	// Patch for sub-FSM compatibility
 	// Yuqian YANG @ LUSIS
 	// 01/05/2015
 	// Identify sub-FSM transition by detect "exit" attribute
-	private SCXMLNode getSubFSMNodeFromTransition(Node n, SCXMLNode pn, Boolean isParallel, Boolean isHistory) throws Exception {
+	private SCXMLNode getSubFSMNodeFromTransition(Node n, SCXMLNode pn,
+			Boolean isParallel, Boolean isHistory) throws Exception {
 		NamedNodeMap att = n.getAttributes();
 		Node exitAttrNode = att.getNamedItem("exit");
-//		String exitAttr=(exitAttrNode!=null)?StringUtils.removeLeadingAndTrailingSpaces(exitAttrNode.getNodeValue()):"";
+		// String
+		// exitAttr=(exitAttrNode!=null)?StringUtils.removeLeadingAndTrailingSpaces(exitAttrNode.getNodeValue()):"";
 		if (exitAttrNode != null) {
 			Node nodeID = att.getNamedItem("target");
-			String nodeIDString=null,nodeNameString=null;
-			if (nodeID==null) {
-//				if (n.getNodeName().toLowerCase().equals(SCXMLNode.ROOTID.toLowerCase())) {
-//					nodeIDString=SCXMLNode.ROOTID;
-//				} else {
-//					nodeIDString="";
-				throw new Exception("add sub-FSM state from transition fail due to no target" + pn.getID());
-//				}
+			String nodeIDString = null, nodeNameString = null;
+			if (nodeID == null) {
+				// if
+				// (n.getNodeName().toLowerCase().equals(SCXMLNode.ROOTID.toLowerCase()))
+				// {
+				// nodeIDString=SCXMLNode.ROOTID;
+				// } else {
+				// nodeIDString="";
+				throw new Exception(
+						"add sub-FSM state from transition fail due to no target"
+								+ pn.getID());
+				// }
 			} else {
-				nodeIDString=StringUtils.cleanupSpaces(nodeID.getNodeValue());
+				nodeIDString = StringUtils.cleanupSpaces(nodeID.getNodeValue());
 			}
-			Node nodeName = att.getNamedItem("name");
-			nodeNameString=(nodeName==null)?null:StringUtils.cleanupSpaces(nodeName.getNodeValue());
-			
-			Node nodeHistoryType = att.getNamedItem("type");
-			String nodeHistoryTypeString=(nodeHistoryType==null)?"shallow":StringUtils.cleanupSpaces(nodeHistoryType.getNodeValue());
-			SCXMLNode.HISTORYTYPE historyType=null;
+			// Node nodeName = att.getNamedItem("name");
+			// nodeNameString=(nodeName==null)?null:StringUtils.cleanupSpaces(nodeName.getNodeValue());
+
+			// Node nodeHistoryType = att.getNamedItem("type");
+			// String
+			// nodeHistoryTypeString=(nodeHistoryType==null)?"shallow":StringUtils.cleanupSpaces(nodeHistoryType.getNodeValue());
+			// Node nodeHistoryType = null;
+			String nodeHistoryTypeString = "shallow";
+			SCXMLNode.HISTORYTYPE historyType = null;
 			try {
-				historyType=SCXMLNode.HISTORYTYPE.valueOf(nodeHistoryTypeString.toUpperCase());
+				historyType = SCXMLNode.HISTORYTYPE
+						.valueOf(nodeHistoryTypeString.toUpperCase());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			SCXMLNode node=buildAndAddBasicNodeAsChildOf(nodeIDString,nodeNameString,pn,false);
-			if ((!isHistory) || (historyType==null)) {
+			Node xmlParentNode = n.getParentNode().getParentNode();
+			SCXMLNode parentNode = getSCXMLNodeFromNode(xmlParentNode);
+			
+			SCXMLNode node = buildAndAddBasicNodeAsChildOf(nodeIDString,
+					nodeNameString, parentNode, false);
+			// TODO: unfinished code check
+			if ((!isHistory) || (historyType == null)) {
 				node.setParallel(isParallel);
-				Node isInitial=null;
-				Node isFinal=null;
-				if (((isFinal=att.getNamedItem("final"))!=null) &&
-						(isFinal.getNodeValue().equals("true"))) {
+				Node isInitial = null;
+				Node isFinal = null;
+				if (((isFinal = att.getNamedItem("final")) != null)
+						&& (isFinal.getNodeValue().equals("true"))) {
 					node.setFinal(true);
 				}
-				if (((isInitial=att.getNamedItem("initial"))!=null)||
-						((isInitial=att.getNamedItem("initialstate"))!=null)) {
-					String[] initialStates=StringUtils.cleanupSpaces(isInitial.getNodeValue()).split("[\\s]");
-					for (String initialStateID:initialStates) {
-						SCXMLNode in =getNodeFromSCXMLID(initialStateID);
-						if (in==null) in=new SCXMLNode();
+				if (((isInitial = att.getNamedItem("initial")) != null)
+						|| ((isInitial = att.getNamedItem("initialstate")) != null)) {
+					String[] initialStates = StringUtils.cleanupSpaces(
+							isInitial.getNodeValue()).split("[\\s]");
+					for (String initialStateID : initialStates) {
+						SCXMLNode in = getNodeFromSCXMLID(initialStateID);
+						if (in == null)
+							in = new SCXMLNode();
 						in.setID(initialStateID);
 						in.setInitial(true);
 						addSCXMLNode(in);
 					}
 				}
 				// set namespace attribute
-				int na=att.getLength();
-				String namespace="";
-				for(int i=0;i<na;i++) {
-					Node a=att.item(i);
-					String name=a.getNodeName().toLowerCase();
+				int na = att.getLength();
+				String namespace = "";
+				for (int i = 0; i < na; i++) {
+					Node a = att.item(i);
+					String name = a.getNodeName().toLowerCase();
 					if (name.startsWith("xmlns")) {
-						namespace+=a.getNodeName()+"=\""+a.getNodeValue()+"\"\n";
+						namespace += a.getNodeName() + "=\"" + a.getNodeValue()
+								+ "\"\n";
 					} else if (name.equals("src")) {
-						setNodeAsOutsourcing(new OutSource(OUTSOURCETYPE.SRC,a.getNodeValue()), node);
+						setNodeAsOutsourcing(
+								new OutSource(OUTSOURCETYPE.SRC,
+										a.getNodeValue()), node);
 					}
 				}
-				if (!StringUtils.isEmptyString(namespace)) node.setNamespace(namespace);
+				if (!StringUtils.isEmptyString(namespace))
+					node.setNamespace(namespace);
 			} else {
 				node.setAsHistory(historyType);
 			}
