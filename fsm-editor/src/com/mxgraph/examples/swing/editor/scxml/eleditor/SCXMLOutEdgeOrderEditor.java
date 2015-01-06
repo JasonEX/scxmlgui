@@ -1,5 +1,9 @@
 package com.mxgraph.examples.swing.editor.scxml.eleditor;
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Point;
@@ -46,8 +50,13 @@ import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 
+@SuppressWarnings({ "unchecked", "rawtypes", "unused" })
 public class SCXMLOutEdgeOrderEditor extends JDialog implements
 		ListSelectionListener, WindowListener, ActionListener {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3658614261473726198L;
 	private JList list;
 	private DefaultListModel listModel;
 	private JScrollPane listScrollPane;
@@ -82,7 +91,7 @@ public class SCXMLOutEdgeOrderEditor extends JDialog implements
 		contentPane.setOpaque(true); // content panes must be opaque
 
 		// save original order in case we cancel the modifications
-		for (Object edge : graph.getAllOutgoingEdges(source))
+		for (Object edge : graph.getOutgoingEdges(source))
 			originalOrder.add((mxCell) edge);
 		setModified(false);
 
@@ -109,6 +118,11 @@ public class SCXMLOutEdgeOrderEditor extends JDialog implements
 	}
 
 	public class CloseAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6976588950213458431L;
+
 		public void actionPerformed(ActionEvent e) {
 			SCXMLOutEdgeOrderEditor.this.actionPerformed(new ActionEvent(this,
 					0, "cancel"));
@@ -120,7 +134,7 @@ public class SCXMLOutEdgeOrderEditor extends JDialog implements
 	}
 
 	private void populateEdgeList(mxCell source) {
-		Object[] edges = graph.getAllOutgoingEdges(source);
+		Object[] edges = graph.getOutgoingEdges(source);
 		listModel.setSize(edges.length);
 		for (Object e : edges) {
 			mxCell edge = (mxCell) e;
@@ -180,9 +194,13 @@ public class SCXMLOutEdgeOrderEditor extends JDialog implements
 	}
 
 	class EdgeRenderer extends JLabel implements ListCellRenderer {
-		public Component getListCellRendererComponent(JList list, Object value, // value
-																				// to
-																				// display
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1372347857510971217L;
+
+		public Component getListCellRendererComponent(
+				JList list, Object value, // value to display
 				int index, // cell index
 				boolean isSelected, // is the cell selected
 				boolean cellHasFocus) // the list and the cell have the focus

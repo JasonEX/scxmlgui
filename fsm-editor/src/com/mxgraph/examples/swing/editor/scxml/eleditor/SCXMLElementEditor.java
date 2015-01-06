@@ -5,6 +5,11 @@ package com.mxgraph.examples.swing.editor.scxml.eleditor;
  *   DocumentSizeFilter.java
  */
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
@@ -35,12 +40,13 @@ import com.mxgraph.examples.swing.editor.scxml.UndoJTextPane;
 import com.mxgraph.examples.swing.editor.utils.AbstractActionWrapper;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGraphModel;
-import com.mxgraph.swing.util.CellSelector;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
+
+import fr.lusis.scxml.subfsm.swing.util.CellSelector;
 
 public class SCXMLElementEditor extends JDialog implements ActionListener,
 		WindowListener {
@@ -197,6 +203,11 @@ public class SCXMLElementEditor extends JDialog implements ActionListener,
 	}
 
 	public class CloseAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4435481559264959114L;
+
 		public void actionPerformed(ActionEvent e) {
 			editor.setEditorForCellAndType(cell, getTypeForEditorClass(), null);
 			cellSelector.unselectAll();

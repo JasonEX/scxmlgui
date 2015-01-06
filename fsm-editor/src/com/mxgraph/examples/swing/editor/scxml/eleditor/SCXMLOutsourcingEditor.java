@@ -125,6 +125,11 @@ public class SCXMLOutsourcingEditor extends SCXMLElementEditor implements
 	}
 
 	public class CloseAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4880808465540687519L;
+
 		public void actionPerformed(ActionEvent e) {
 			dispose();
 		}

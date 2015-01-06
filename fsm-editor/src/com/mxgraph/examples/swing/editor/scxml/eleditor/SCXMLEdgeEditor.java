@@ -5,15 +5,17 @@ package com.mxgraph.examples.swing.editor.scxml.eleditor;
  *   DocumentSizeFilter.java
  */
 
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/06/2015
+
+
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
-import java.awt.ScrollPane;
 import java.awt.event.ActionEvent;
 import java.util.LinkedList;
 import java.util.List;
@@ -248,7 +250,7 @@ public class SCXMLEdgeEditor extends SCXMLElementEditor {
 		mxCell sourceCell = editor.getGraphComponent().getSCXMLNodeForID(
 				edge.getSCXMLSource());
 		Object[] allOutgoingEdges = editor.getGraphComponent().getGraph()
-				.getAllOutgoingEdges(sourceCell);
+				.getOutgoingEdges(sourceCell);
 		List<String> existingEventsOnSourceNode = new LinkedList<String>();
 		for (Object object : allOutgoingEdges) {
 			SCXMLEdge tempEdge = (SCXMLEdge) ((mxCell) object).getValue();
