@@ -3,6 +3,7 @@ package com.mxgraph.examples.swing.editor.utils;
 import java.io.Serializable;
 
 // taken from http://en.wikipedia.org/wiki/Generics_in_Java
+@SuppressWarnings("rawtypes")
 public class Pair<T, S> implements Serializable {
 	private static final long serialVersionUID = 1L;
 

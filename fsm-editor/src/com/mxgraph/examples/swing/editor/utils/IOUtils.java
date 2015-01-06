@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
+@SuppressWarnings("resource")
 public class IOUtils {
 	public static void copyFile(File in, File out) throws IOException {
 		FileChannel inChannel = new FileInputStream(in).getChannel();

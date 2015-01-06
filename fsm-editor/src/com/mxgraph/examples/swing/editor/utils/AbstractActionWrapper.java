@@ -8,6 +8,10 @@ import javax.swing.ImageIcon;
 
 public class AbstractActionWrapper extends AbstractAction {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8819097513363818111L;
 	private Action action;
 	private Object eventSource;
 

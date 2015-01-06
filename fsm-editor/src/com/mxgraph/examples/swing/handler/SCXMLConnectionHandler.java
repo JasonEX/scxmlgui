@@ -13,11 +13,6 @@ import com.mxgraph.view.mxGraph;
 
 public class SCXMLConnectionHandler extends mxConnectionHandler {
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 592305036573256904L;
-
 	public SCXMLConnectionHandler(SCXMLGraphComponent graphComponent) {
 		super(graphComponent);
 	}
