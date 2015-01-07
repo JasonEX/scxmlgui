@@ -1,7 +1,13 @@
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/07/2015
+
 package com.mxgraph.examples.swing.editor.fileimportexport;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,6 +27,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import com.mxgraph.examples.config.SCXMLConstraints;
@@ -36,13 +43,16 @@ import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxICell;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.util.StringUtils;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.util.mxXmlUtils;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraphView;
 
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
+
+@SuppressWarnings({"unchecked", "rawtypes", "unused"})
 public class SCXMLImportExport implements IImportExport {
 
 	private SCXMLNode root = null;
@@ -702,7 +712,12 @@ public class SCXMLImportExport implements IImportExport {
 			SCXMLConstraints restrictedConstraints) throws Exception {
 		System.out.println("Parsing file: " + filename);
 		File file = new File(filename);
-		Document doc = mxUtils.parseXMLFile(file, false, false);
+//		InputSource is = new InputSource(new InputStreamReader(new FileInputStream(file), "UTF8"));
+//		is.setSystemId(file.toURI().toURL().toExternalForm());
+//		DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
+//		DocumentBuilder docBuilder = docBuilderFactory.newDocumentBuilder();
+//		Document doc = docBuilder.parse(is);
+		Document doc = mxXmlUtils.parseXml(mxUtils.readFile(filename));
 		doc.getDocumentElement().normalize();
 		SCXMLNode rootNode = getNodeHier(editor, doc.getDocumentElement(),
 				parent, file.getParentFile(), restrictedConstraints);

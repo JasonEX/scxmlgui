@@ -1,3 +1,7 @@
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/07/2015
+
 package com.mxgraph.examples.swing.editor.fileimportexport;
 
 import java.io.IOException;
@@ -14,12 +18,13 @@ import javax.swing.text.Document;
 import com.mxgraph.examples.config.SCXMLConstraints.RestrictedState;
 import com.mxgraph.examples.config.SCXMLConstraints.RestrictedState.PossibleEvent;
 import com.mxgraph.examples.swing.editor.fileimportexport.OutSource.OUTSOURCETYPE;
-import com.mxgraph.examples.swing.editor.fileimportexport.SCXMLNode.HISTORYTYPE;
 import com.mxgraph.examples.swing.editor.scxml.MyUndoManager;
 import com.mxgraph.model.mxGeometry;
-import com.mxgraph.util.StringUtils;
 import com.mxgraph.util.mxConstants;
 
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
+
+@SuppressWarnings("unchecked")
 public class SCXMLNode implements Serializable {
 	private static final long serialVersionUID = -2136349535452806563L;
 

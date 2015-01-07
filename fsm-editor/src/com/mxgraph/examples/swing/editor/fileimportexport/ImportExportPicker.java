@@ -1,3 +1,7 @@
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/07/2015
+
 package com.mxgraph.examples.swing.editor.fileimportexport;
 
 import java.io.File;
@@ -16,8 +20,9 @@ import javax.swing.filechooser.FileFilter;
 import com.mxgraph.examples.swing.SCXMLGraphEditor;
 import com.mxgraph.examples.swing.editor.DefaultFileFilter;
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.util.StringUtils;
 import com.mxgraph.util.mxResources;
+
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
 
 // defines the file filters used in the open file dialog box.
 // associates to each file filter decoding and encoding actions

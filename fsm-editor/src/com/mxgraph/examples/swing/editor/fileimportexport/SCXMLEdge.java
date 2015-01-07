@@ -1,3 +1,7 @@
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/07/2015
+
 package com.mxgraph.examples.swing.editor.fileimportexport;
 
 import java.io.IOException;
@@ -14,9 +18,11 @@ import javax.swing.text.Document;
 import com.mxgraph.examples.swing.editor.scxml.MyUndoManager;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGeometry;
-import com.mxgraph.util.StringUtils;
 import com.mxgraph.util.mxPoint;
 
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
+
+@SuppressWarnings("unchecked")
 public class SCXMLEdge implements Serializable {
 	private static final long serialVersionUID = -136975794270718480L;
 

@@ -1,3 +1,7 @@
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/07/2015
+
 package com.mxgraph.examples.swing.editor.fileimportexport;
 
 import java.io.IOException;
@@ -8,6 +12,7 @@ import com.mxgraph.examples.config.SCXMLConstraints;
 import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.util.mxCellRenderer;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.util.mxXmlUtils;
 import com.mxgraph.view.mxGraph;
 
 public class VMLImportExport implements IImportExport {
@@ -32,7 +37,7 @@ public class VMLImportExport implements IImportExport {
 	public void write(mxGraphComponent from, String into) throws IOException {
 		mxGraph graph = from.getGraph();
 		mxUtils.writeFile(
-				mxUtils.getXml(mxCellRenderer.createVmlDocument(graph, null, 1,
+				mxXmlUtils.getXml(mxCellRenderer.createVmlDocument(graph, null, 1,
 						null, null).getDocumentElement()), into);
 	}
 
