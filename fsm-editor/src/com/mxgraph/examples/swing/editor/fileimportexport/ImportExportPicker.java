@@ -32,8 +32,8 @@ public class ImportExportPicker {
 
 		@Override
 		public int compareTo(SortableFileFilter ff) {
-			if (!StringUtils.isEmptyString(ff.getExtension())
-					&& !StringUtils.isEmptyString(getExtension()))
+			if (!SCXMLEditorStringUtils.isEmptyString(ff.getExtension())
+					&& !SCXMLEditorStringUtils.isEmptyString(getExtension()))
 				return ff.getExtension().compareTo(getExtension());
 			else
 				return 0;

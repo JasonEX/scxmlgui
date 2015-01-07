@@ -153,7 +153,7 @@ public class SCXMLImportExport implements IImportExport {
 	}
 
 	public SCXMLNode getNodeFromSCXMLID(String scxmlID) {
-		assert (!StringUtils.isEmptyString(scxmlID));
+		assert (!SCXMLEditorStringUtils.isEmptyString(scxmlID));
 		return scxmlID2nodes.get(scxmlID);
 	}
 
@@ -171,7 +171,7 @@ public class SCXMLImportExport implements IImportExport {
 		String scxmlID = node.getID();
 		String internalID = getNextInternalID();
 		node.setInternalID(internalID);
-		if (!StringUtils.isEmptyString(scxmlID))
+		if (!SCXMLEditorStringUtils.isEmptyString(scxmlID))
 			scxmlID2nodes.put(scxmlID, node);
 		internalID2nodes.put(internalID, node);
 	}
@@ -207,12 +207,12 @@ public class SCXMLImportExport implements IImportExport {
 		// nodeIDString = StringUtils.cleanupSpaces(nodeID.getNodeValue());
 		// }
 		Node nodeName = att.getNamedItem("name");
-		nodeNameString = (nodeName == null) ? null : StringUtils
+		nodeNameString = (nodeName == null) ? null : SCXMLEditorStringUtils
 				.cleanupSpaces(nodeName.getNodeValue());
 
 		Node nodeHistoryType = att.getNamedItem("type");
 		String nodeHistoryTypeString = (nodeHistoryType == null) ? "shallow"
-				: StringUtils.cleanupSpaces(nodeHistoryType.getNodeValue());
+				: SCXMLEditorStringUtils.cleanupSpaces(nodeHistoryType.getNodeValue());
 		SCXMLNode.HISTORYTYPE historyType = null;
 		try {
 			historyType = SCXMLNode.HISTORYTYPE.valueOf(nodeHistoryTypeString
@@ -232,7 +232,7 @@ public class SCXMLImportExport implements IImportExport {
 			}
 			if (((isInitial = att.getNamedItem("initial")) != null)
 					|| ((isInitial = att.getNamedItem("initialstate")) != null)) {
-				String[] initialStates = StringUtils.cleanupSpaces(
+				String[] initialStates = SCXMLEditorStringUtils.cleanupSpaces(
 						isInitial.getNodeValue()).split("[\\s]");
 				for (String initialStateID : initialStates) {
 					SCXMLNode in = getNodeFromSCXMLID(initialStateID);
@@ -258,7 +258,7 @@ public class SCXMLImportExport implements IImportExport {
 							node);
 				}
 			}
-			if (!StringUtils.isEmptyString(namespace))
+			if (!SCXMLEditorStringUtils.isEmptyString(namespace))
 				node.setNamespace(namespace);
 		} else {
 			node.setAsHistory(historyType);
@@ -280,7 +280,7 @@ public class SCXMLImportExport implements IImportExport {
 
 	private Object addCommentsAndResetCollectorTo(Object thing)
 			throws Exception {
-		if (!StringUtils.isEmptyString(commentsCollector[0])) {
+		if (!SCXMLEditorStringUtils.isEmptyString(commentsCollector[0])) {
 			if (thing instanceof SCXMLNode) {
 				((SCXMLNode) thing).setComments(commentsCollector[0]);
 			} else if (thing instanceof SCXMLEdge) {
@@ -382,11 +382,11 @@ public class SCXMLImportExport implements IImportExport {
 			} else if (name.equals("xi:include")) {
 				NamedNodeMap att = n.getAttributes();
 				Node nodeLocation = att.getNamedItem("href");
-				String location = (nodeLocation == null) ? "" : StringUtils
+				String location = (nodeLocation == null) ? "" : SCXMLEditorStringUtils
 						.cleanupSpaces(nodeLocation.getNodeValue());
-				location = StringUtils.cleanupSpaces(location);
+				location = SCXMLEditorStringUtils.cleanupSpaces(location);
 				System.out.println(location);
-				if (!StringUtils.isEmptyString(location)) {
+				if (!SCXMLEditorStringUtils.isEmptyString(location)) {
 					SCXMLNode child = setNodeAsOutsourcing(new OutSource(
 							OUTSOURCETYPE.XINC, location), pn);
 					scanChildrenOf(editor, n, child, pwd, restrictedConstraints);
@@ -474,7 +474,7 @@ public class SCXMLImportExport implements IImportExport {
 				nodeIDString = "";
 			}
 		} else {
-			nodeIDString = StringUtils.cleanupSpaces(nodeID.getNodeValue());
+			nodeIDString = SCXMLEditorStringUtils.cleanupSpaces(nodeID.getNodeValue());
 		}
 		return nodeIDString;
 	}
@@ -512,7 +512,7 @@ public class SCXMLImportExport implements IImportExport {
 								+ pn.getID());
 				// }
 			} else {
-				nodeIDString = StringUtils.cleanupSpaces(nodeID.getNodeValue());
+				nodeIDString = SCXMLEditorStringUtils.cleanupSpaces(nodeID.getNodeValue());
 			}
 			// Node nodeName = att.getNamedItem("name");
 			// nodeNameString=(nodeName==null)?null:StringUtils.cleanupSpaces(nodeName.getNodeValue());
@@ -544,7 +544,7 @@ public class SCXMLImportExport implements IImportExport {
 				}
 				if (((isInitial = att.getNamedItem("initial")) != null)
 						|| ((isInitial = att.getNamedItem("initialstate")) != null)) {
-					String[] initialStates = StringUtils.cleanupSpaces(
+					String[] initialStates = SCXMLEditorStringUtils.cleanupSpaces(
 							isInitial.getNodeValue()).split("[\\s]");
 					for (String initialStateID : initialStates) {
 						SCXMLNode in = getNodeFromSCXMLID(initialStateID);
@@ -570,7 +570,7 @@ public class SCXMLImportExport implements IImportExport {
 										a.getNodeValue()), node);
 					}
 				}
-				if (!StringUtils.isEmptyString(namespace))
+				if (!SCXMLEditorStringUtils.isEmptyString(namespace))
 					node.setNamespace(namespace);
 			} else {
 				node.setAsHistory(historyType);
@@ -591,12 +591,12 @@ public class SCXMLImportExport implements IImportExport {
 
 		NamedNodeMap att = n.getAttributes();
 		Node targetNode = att.getNamedItem("target");
-		String source = (targetNode != null) ? StringUtils
+		String source = (targetNode != null) ? SCXMLEditorStringUtils
 				.removeLeadingAndTrailingSpaces(targetNode.getNodeValue()) : "";
 		Node exitAttrNode = att.getNamedItem("exit");
 		ArrayList<String> targets = null;
 		if (exitAttrNode != null)
-			targets = new ArrayList<String>(Arrays.asList(StringUtils
+			targets = new ArrayList<String>(Arrays.asList(SCXMLEditorStringUtils
 					.cleanupSpaces(exitAttrNode.getNodeValue()).split("[\\s]")));
 
 		// event, cond and target attributes
@@ -664,15 +664,15 @@ public class SCXMLImportExport implements IImportExport {
 		// event, cond and target attributes
 		NamedNodeMap att = n.getAttributes();
 		Node condNode = att.getNamedItem("cond");
-		String cond = (condNode != null) ? StringUtils
+		String cond = (condNode != null) ? SCXMLEditorStringUtils
 				.removeLeadingAndTrailingSpaces(condNode.getNodeValue()) : "";
 		Node eventNode = att.getNamedItem("event");
-		String event = (eventNode != null) ? StringUtils
+		String event = (eventNode != null) ? SCXMLEditorStringUtils
 				.removeLeadingAndTrailingSpaces(eventNode.getNodeValue()) : "";
 		Node targetNode = att.getNamedItem("target");
 		ArrayList<String> targets = null;
 		if (targetNode != null)
-			targets = new ArrayList<String>(Arrays.asList(StringUtils
+			targets = new ArrayList<String>(Arrays.asList(SCXMLEditorStringUtils
 					.cleanupSpaces(targetNode.getNodeValue()).split("[\\s]")));
 		// if ((targets!=null) && (targets.size()>1)) throw new
 		// Exception("multiple targets not supported.");
@@ -694,7 +694,7 @@ public class SCXMLImportExport implements IImportExport {
 		for (int i = 0; i < listLength; i++) {
 			content += XMLUtils.domNode2String(list.item(i), true);
 		}
-		return StringUtils.removeLeadingAndTrailingSpaces(content);
+		return SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(content);
 	}
 
 	public SCXMLNode readSCXMLFileContentAndAttachAsChildrenOf(
@@ -1007,27 +1007,27 @@ public class SCXMLImportExport implements IImportExport {
 		SCXMLNode value = (SCXMLNode) n.getValue();
 		boolean isFake = value.getFake();
 
-		comments = StringUtils.removeLeadingAndTrailingSpaces(value
+		comments = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value
 				.getComments());
 
-		ID = StringUtils.removeLeadingAndTrailingSpaces(value.getID());
-		name = StringUtils.removeLeadingAndTrailingSpaces(value.getName());
-		datamodel = StringUtils.removeLeadingAndTrailingSpaces(value
+		ID = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value.getID());
+		name = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value.getName());
+		datamodel = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value
 				.getDatamodel());
 		if (value.isFinal())
-			donedata = StringUtils.removeLeadingAndTrailingSpaces(value
+			donedata = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value
 					.getDoneData());
-		onentry = StringUtils
+		onentry = SCXMLEditorStringUtils
 				.removeLeadingAndTrailingSpaces(value.getOnEntry());
-		onexit = StringUtils.removeLeadingAndTrailingSpaces(value.getOnExit());
-		otherContent = StringUtils.removeLeadingAndTrailingSpaces(value
+		onexit = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value.getOnExit());
+		otherContent = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value
 				.getScript());
 
 		transitions = edgesOfmxVertex2SCXMLString(n, value, view);
 
 		SCXMLNode initialChild = getInitialChildOfmxCell(n);
 		if (initialChild != null)
-			oninitialentry = StringUtils
+			oninitialentry = SCXMLEditorStringUtils
 					.removeLeadingAndTrailingSpaces(initialChild
 							.getOnInitialEntry());
 		String close = "";
@@ -1049,27 +1049,27 @@ public class SCXMLImportExport implements IImportExport {
 				ret = "<state";
 				close = "</state>";
 			}
-			if (!StringUtils.isEmptyString(comments)) {
+			if (!SCXMLEditorStringUtils.isEmptyString(comments)) {
 				if (!isRoot)
 					ret = "<!--" + comments + "-->\n" + ret;
 				else
 					System.out
 							.println("BUG: Ignoring comment associated to SCXML root.");
 			}
-			String namespace = StringUtils.removeLeadingAndTrailingSpaces(value
+			String namespace = SCXMLEditorStringUtils.removeLeadingAndTrailingSpaces(value
 					.getNamespace().replace("\n", " "));
-			if (!StringUtils.isEmptyString(namespace))
+			if (!SCXMLEditorStringUtils.isEmptyString(namespace))
 				ret += " " + namespace;
 			if (value.isOutsourcedNode() && value.isOutsourcedNodeUsingSRC()) {
 				assert (!isFake);
 				String src = value.getSRC().getLocation();
 				ret += " src=\"" + src + "\"";
 			}
-			if (!isRoot && !StringUtils.isEmptyString(ID))
+			if (!isRoot && !SCXMLEditorStringUtils.isEmptyString(ID))
 				ret += " id=\"" + ID + "\"";
-			if (!StringUtils.isEmptyString(name))
+			if (!SCXMLEditorStringUtils.isEmptyString(name))
 				ret += " name=\"" + name + "\"";
-			if (StringUtils.isEmptyString(oninitialentry)
+			if (SCXMLEditorStringUtils.isEmptyString(oninitialentry)
 					&& (initialChild != null))
 				ret += " initial=\"" + initialChild.getID() + "\"";
 			ret += ">";
@@ -1085,10 +1085,10 @@ public class SCXMLImportExport implements IImportExport {
 						+ "\" parse=\"xml\">";
 				if (isFake)
 					close = "";
-				if (!StringUtils.isEmptyString(nodeGeometry))
+				if (!SCXMLEditorStringUtils.isEmptyString(nodeGeometry))
 					ret += "<!-- " + nodeGeometry + " -->";
 				ret += "</xi:include>";
-			} else if (!StringUtils.isEmptyString(nodeGeometry))
+			} else if (!SCXMLEditorStringUtils.isEmptyString(nodeGeometry))
 				ret += "<!-- " + nodeGeometry + " -->";
 
 			// save restriction type
@@ -1102,9 +1102,9 @@ public class SCXMLImportExport implements IImportExport {
 			}
 
 			if (!isFake) {
-				if (!StringUtils.isEmptyString(datamodel))
+				if (!SCXMLEditorStringUtils.isEmptyString(datamodel))
 					ret += "<datamodel>" + datamodel + "</datamodel>";
-				if ((!StringUtils.isEmptyString(oninitialentry))
+				if ((!SCXMLEditorStringUtils.isEmptyString(oninitialentry))
 						&& (initialChild != null))
 					if (isRoot) {
 						System.out
@@ -1115,18 +1115,18 @@ public class SCXMLImportExport implements IImportExport {
 								+ initialChild.getID() + "\">" + oninitialentry
 								+ "</transition></initial>";
 					}
-				if (!StringUtils.isEmptyString(donedata))
+				if (!SCXMLEditorStringUtils.isEmptyString(donedata))
 					ret += "<donedata>" + donedata + "</donedata>";
-				if (!StringUtils.isEmptyString(onentry))
+				if (!SCXMLEditorStringUtils.isEmptyString(onentry))
 					ret += "<onentry>" + onentry + "</onentry>";
-				if (!StringUtils.isEmptyString(onexit))
+				if (!SCXMLEditorStringUtils.isEmptyString(onexit))
 					ret += "<onexit>" + onexit + "</onexit>";
-				if (!StringUtils.isEmptyString(transitions))
+				if (!SCXMLEditorStringUtils.isEmptyString(transitions))
 					ret += transitions;
 			}
 		}
 		// additional content that is not a comment
-		if (!StringUtils.isEmptyString(otherContent)) {
+		if (!SCXMLEditorStringUtils.isEmptyString(otherContent)) {
 			ret += otherContent;
 		}
 		// add the children only if the node is not outsourced
@@ -1176,7 +1176,7 @@ public class SCXMLImportExport implements IImportExport {
 			String ret = null;
 			if ((points != null) || (offset != null)) {
 				ret = " edge-path ["
-						+ ((StringUtils.isEmptyString(target)) ? "" : target)
+						+ ((SCXMLEditorStringUtils.isEmptyString(target)) ? "" : target)
 						+ "] ";
 				if (points != null) {
 					for (mxPoint p : points) {
@@ -1201,7 +1201,7 @@ public class SCXMLImportExport implements IImportExport {
 
 	private String getIDOfThisEdgeTarget(mxCell n) {
 		String targetID = ((SCXMLNode) n.getTarget().getValue()).getID();
-		assert (!StringUtils.isEmptyString(targetID));
+		assert (!SCXMLEditorStringUtils.isEmptyString(targetID));
 		return targetID;
 	}
 
@@ -1292,24 +1292,24 @@ public class SCXMLImportExport implements IImportExport {
 					SCXMLNode targetValue = (SCXMLNode) target.getValue();
 					SCXMLEdge edgeValue = (SCXMLEdge) e.getValue();
 					String ret = "";
-					String cond = XMLUtils.escapeStringForXML(StringUtils
+					String cond = XMLUtils.escapeStringForXML(SCXMLEditorStringUtils
 							.removeLeadingAndTrailingSpaces(edgeValue
 									.getCondition()));
-					String event = XMLUtils.escapeStringForXML(StringUtils
+					String event = XMLUtils.escapeStringForXML(SCXMLEditorStringUtils
 							.removeLeadingAndTrailingSpaces(edgeValue
 									.getEvent()));
-					String exe = StringUtils
+					String exe = SCXMLEditorStringUtils
 							.removeLeadingAndTrailingSpaces(edgeValue.getExe());
-					String comments = StringUtils
+					String comments = SCXMLEditorStringUtils
 							.removeLeadingAndTrailingSpaces(edgeValue
 									.getComments());
 					ret = "<transition";
-					if (!StringUtils.isEmptyString(comments)) {
+					if (!SCXMLEditorStringUtils.isEmptyString(comments)) {
 						ret = "<!--" + comments + "-->\n" + ret;
 					}
-					if (!StringUtils.isEmptyString(event))
+					if (!SCXMLEditorStringUtils.isEmptyString(event))
 						ret += " event=\"" + event + "\"";
-					if (!StringUtils.isEmptyString(cond))
+					if (!SCXMLEditorStringUtils.isEmptyString(cond))
 						ret += " cond=\"" + cond + "\"";
 					if ((!edgeValue.isCycle()) || edgeValue.isCycleWithTarget()) {
 						ret += " target=\"";
@@ -1325,11 +1325,11 @@ public class SCXMLImportExport implements IImportExport {
 						ret += "\"";
 					}
 					ret += ">";
-					if (!StringUtils.isEmptyString(exe))
+					if (!SCXMLEditorStringUtils.isEmptyString(exe))
 						ret += exe;
 					for (mxCell edge : edges4order) {
 						String edgeGeometry = getGeometryString(view, edge);
-						if (!StringUtils.isEmptyString(edgeGeometry))
+						if (!SCXMLEditorStringUtils.isEmptyString(edgeGeometry))
 							ret += "<!-- " + edgeGeometry + " -->";
 					}
 					ret += "</transition>";

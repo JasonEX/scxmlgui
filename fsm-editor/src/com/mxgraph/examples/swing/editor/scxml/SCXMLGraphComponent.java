@@ -1,8 +1,8 @@
-package com.mxgraph.examples.swing.editor.scxml;
-
 // Patch for jgraphx migration
 // Yuqian YANG @ LUSIS
 // 01/06/2015
+
+package com.mxgraph.examples.swing.editor.scxml;
 
 import java.awt.Color;
 import java.awt.Point;
@@ -28,6 +28,7 @@ import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.swing.handler.mxConnectionHandler;
 import com.mxgraph.swing.handler.mxGraphHandler;
 import com.mxgraph.util.mxEventObject;
+import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxUtils;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxGraphView;
@@ -198,35 +199,21 @@ public class SCXMLGraphComponent extends mxGraphComponent
 		return new Point((int)Math.round(p.x/scale), (int)Math.round(p.y/scale));
 	}
 	
-	/*
-	 * @Override public void componentHidden(ComponentEvent e) { // TODO
-	 * Auto-generated method stub
-	 * 
-	 * }
-	 * 
-	 * @Override public void componentMoved(ComponentEvent e) { // TODO
-	 * Auto-generated method stub
-	 * 
-	 * }
-	 * 
-	 * @Override public void componentResized(ComponentEvent e) {
-	 * System.out.println("resize??"); FSMEditor editor =
-	 * ((CustomGraph)this.getGraph()).getEditor(); mxGraphComponent gc =
-	 * editor.getGraphComponent(); if ((gc!=null) &&
-	 * (editor.getCurrentFileIO()!=null)) { mxIGraphModel model =
-	 * gc.getGraph().getModel(); mxCell
-	 * root=((SCXMLImportExport)editor.getCurrentFileIO
-	 * ()).followUniqueDescendantLineTillSCXMLValueIsFound(model); mxGeometry g
-	 * = root.getGeometry(); model.setGeometry(root, new mxGeometry(g.getX(),
-	 * g.getY(),
-	 * gc.getSize().width/graph.getView().getScale(),gc.getSize().height
-	 * /graph.getView().getScale())); //Object[] a={root}; //mxRectangle[]
-	 * b={root.getGeometry()}; //graph.cellsResized(a,b); } zoomAndCenter(); }
-	 * 
-	 * @Override public void componentShown(ComponentEvent e) { // TODO
-	 * Auto-generated method stub
-	 * 
-	 * }
-	 */
+	public Point mouseCoordToGraphCoord(Point mouse) {
+		mxGraphView view = graph.getView();
+		double scale = view.getScale();
+		mxPoint trans = view.getTranslate();
+		int dx = getHorizontalScrollBar().getValue();
+		int dy = getVerticalScrollBar().getValue();
+		return new Point((int) Math.round(((dx + mouse.x) / scale)
+				- trans.getX()), (int) Math.round(((dy + mouse.y) / scale)
+				- trans.getY()));
+	}
+
+	public Point mouseCoordToGraphMouseCoord(Point mouse) {
+		int dx = getHorizontalScrollBar().getValue();
+		int dy = getVerticalScrollBar().getValue();
+		return new Point(dx + mouse.x, dy + mouse.y);
+	}
 
 }

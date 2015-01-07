@@ -46,7 +46,7 @@ import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 
-import fr.lusis.scxml.subfsm.swing.utils.CellSelector;
+import fr.lusis.scxml.subfsm.swing.utils.SCXMLEditorCellSelector;
 
 public class SCXMLElementEditor extends JDialog implements ActionListener,
 		WindowListener {
@@ -70,7 +70,7 @@ public class SCXMLElementEditor extends JDialog implements ActionListener,
 	private mxCell cell = null;
 
 	protected JButton idButton;
-	private CellSelector cellSelector;
+	private SCXMLEditorCellSelector cellSelector;
 
 	public static enum Type {
 		EDGE, NODE, OUTGOING_EDGE_ORDER, OUTSOURCING
@@ -87,7 +87,7 @@ public class SCXMLElementEditor extends JDialog implements ActionListener,
 				"/com/mxgraph/examples/swing/images/redo.gif");
 		keyboardHandler = new EditorKeyboardHandler(this);
 
-		cellSelector = new CellSelector(editor.getGraphComponent());
+		cellSelector = new SCXMLEditorCellSelector(editor.getGraphComponent());
 
 		idButton = new JButton(mxResources.get("showCell"));
 		idButton.setActionCommand("id");

@@ -184,7 +184,7 @@ public class SCXMLNode implements Serializable {
 	}
 
 	public String getOutsourcedLocation() {
-		return (isOutsourcedNode()) ? StringUtils
+		return (isOutsourcedNode()) ? SCXMLEditorStringUtils
 				.removeLeadingAndTrailingSpaces(getSRC().getLocation()) : "";
 	}
 
@@ -197,7 +197,7 @@ public class SCXMLNode implements Serializable {
 
 	public boolean isOutsourcedNode() {
 		OutSource src = getSRC();
-		return (src != null) && (!StringUtils.isEmptyString(src.getLocation()));
+		return (src != null) && (!SCXMLEditorStringUtils.isEmptyString(src.getLocation()));
 	}
 
 	public boolean isOutsourcedNodeUsingSRC() {
@@ -378,7 +378,7 @@ public class SCXMLNode implements Serializable {
 
 	public void appendToScript(String script) {
 		String existingContent = getScript();
-		node.put(SCRIPT, (StringUtils.isEmptyString(existingContent)) ? script
+		node.put(SCRIPT, (SCXMLEditorStringUtils.isEmptyString(existingContent)) ? script
 				: existingContent + script);
 	}
 

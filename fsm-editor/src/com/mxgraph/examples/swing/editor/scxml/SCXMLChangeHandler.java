@@ -1,3 +1,7 @@
+// Patch for jgraphx migration
+// Yuqian YANG @ LUSIS
+// 01/07/2015
+
 package com.mxgraph.examples.swing.editor.scxml;
 
 import java.lang.reflect.Method;
@@ -12,14 +16,15 @@ import com.mxgraph.examples.swing.editor.fileimportexport.SCXMLNode;
 import com.mxgraph.examples.swing.editor.fileimportexport.SCXMLNode.HISTORYTYPE;
 import com.mxgraph.examples.swing.editor.utils.Pair;
 import com.mxgraph.model.mxCell;
-import com.mxgraph.model.mxIGraphModel;
-import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
+
+import fr.lusis.scxml.subfsm.model.SCXMLEditorIGraphModel;
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorUndoableEdit.SCXMLEditorUndoableChange;
 
 public class SCXMLChangeHandler {
 
 	private static final SCXMLChangeHandler instance = new SCXMLChangeHandler();
 
-	public abstract class SCXMLChange implements mxUndoableChange {
+	public abstract class SCXMLChange implements SCXMLEditorUndoableChange {
 		@Override
 		public String getInfoString() {
 			return this.getClass().getSimpleName();
@@ -264,6 +269,7 @@ public class SCXMLChangeHandler {
 			setOnExitDoc, setOnInitialEntryDoc, setDoneDataDoc,
 			setDatamodelDoc, setNamespaceDoc, setExeDoc, setConditionDoc,
 			setEventDoc, setNodeCommentsDoc, setEdgeCommentsDoc;
+	@SuppressWarnings("unused")
 	private static Method setSRCUndoManager, setIDUndoManager,
 			setNameUndoManager, setOnEntryUndoManager, setOnExitUndoManager,
 			setOnInitialEntryUndoManager, setDoneDataUndoManager,
@@ -430,7 +436,7 @@ public class SCXMLChangeHandler {
 	}
 
 	public static void addStateOfNodeInCurrentEdit(mxCell cell,
-			mxIGraphModel model) {
+			SCXMLEditorIGraphModel model) {
 		if ((cell != null) && (cell.getValue() != null)) {
 			SCXMLNode node = (SCXMLNode) cell.getValue();
 			try {
@@ -484,7 +490,7 @@ public class SCXMLChangeHandler {
 	}
 
 	public static void addStateOfEdgeInCurrentEdit(mxCell cell,
-			mxIGraphModel model) {
+			SCXMLEditorIGraphModel model) {
 		if ((cell != null) && (cell.getValue() != null)) {
 			SCXMLEdge edge = (SCXMLEdge) cell.getValue();
 			try {

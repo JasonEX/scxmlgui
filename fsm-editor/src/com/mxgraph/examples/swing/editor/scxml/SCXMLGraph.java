@@ -1,8 +1,8 @@
-package com.mxgraph.examples.swing.editor.scxml;
-
 // Patch for jgraphx migration
 // Yuqian YANG @ LUSIS
 // 01/06/2015
+
+package com.mxgraph.examples.swing.editor.scxml;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -43,13 +43,14 @@ import com.mxgraph.util.mxResources;
 import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 
-import fr.lusis.scxml.subfsm.utils.StringUtils;
+import fr.lusis.scxml.subfsm.model.SCXMLEditorIGraphModel;
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
 
 /**
  * A graph that creates new edges from a given template edge.
  */
 @SuppressWarnings("unused")
-public class SCXMLGraph extends mxGraph {
+public class SCXMLGraph extends fr.lusis.scxml.subfsm.view.SCXMLEditorGraph {
 	/**
 	 * Holds the shared number formatter.
 	 * 
@@ -132,7 +133,7 @@ public class SCXMLGraph extends mxGraph {
 		SCXMLGraphComponent gc = getEditor().getGraphComponent();
 		String warnings = "";
 		if (isCellEditable(cell) && (status == EditorStatus.EDITING)) {
-			if (model.isVertex(cell)) {
+			if (getModel().isVertex(cell)) {
 				mxCell node = (mxCell) cell;
 
 				mxICell parent = node.getParent();
@@ -187,7 +188,7 @@ public class SCXMLGraph extends mxGraph {
 					if (pos > 0) {
 						namespaceGood = false;
 						namespace = SCXMLid.substring(0, pos);
-						mxIGraphModel model = getModel();
+						SCXMLEditorIGraphModel model = getExtendModel();
 						mxCell root = SCXMLImportExport
 								.followUniqueDescendantLineTillSCXMLValueIsFound(model);
 						SCXMLNode rootValue = (SCXMLNode) root.getValue();
@@ -211,7 +212,7 @@ public class SCXMLGraph extends mxGraph {
 						warnings += "Namespace '" + namespace
 								+ "' is used but not defined.\n";
 				}
-				if (!StringUtils.isEmptyString(nodeValueID)) {
+				if (!SCXMLEditorStringUtils.isEmptyString(nodeValueID)) {
 					SCXMLNode parentValue = null;
 					if (parent == null
 							|| ((parentValue = (SCXMLNode) parent.getValue()) == null)
@@ -279,10 +280,10 @@ public class SCXMLGraph extends mxGraph {
 										warnings += "History node '"
 												+ nodeValueID
 												+ "' has more than 1 outgoing transition.\n";
-									if (!StringUtils
+									if (!SCXMLEditorStringUtils
 											.isEmptyString(((SCXMLEdge) c
 													.getValue()).getCondition())
-											|| !StringUtils
+											|| !SCXMLEditorStringUtils
 													.isEmptyString(((SCXMLEdge) c
 															.getValue())
 															.getEvent())) {
@@ -306,11 +307,11 @@ public class SCXMLGraph extends mxGraph {
 					warnings += "Executable content of one edge from "
 							+ source.getID() + " to " + target.getID()
 							+ " caused a parser error: " + error + "\n";
-				if (StringUtils.isEmptyString(source.getID())
-						|| StringUtils.isEmptyString(target.getID())) {
+				if (SCXMLEditorStringUtils.isEmptyString(source.getID())
+						|| SCXMLEditorStringUtils.isEmptyString(target.getID())) {
 					warnings += "target and source of a transition must have not empty name.\n";
 				}
-				Object lca = ((mxGraphModel) model).getNearestCommonAncestor(edge.getSource(),
+				Object lca = getExtendModel().getNearestCommonAncestor(edge.getSource(),
 						edge.getTarget());
 				if (lca != null && lca instanceof mxCell) {
 					SCXMLNode scxmlLCA = (SCXMLNode) ((mxCell) lca).getValue();
@@ -345,7 +346,7 @@ public class SCXMLGraph extends mxGraph {
 				}
 			}
 		}
-		if (StringUtils.isEmptyString(warnings))
+		if (SCXMLEditorStringUtils.isEmptyString(warnings))
 			return null;
 		else
 			return warnings;
@@ -467,9 +468,9 @@ public class SCXMLGraph extends mxGraph {
 				mxResources.get("edgeCreationOption"),
 				JOptionPane.YES_NO_OPTION);
 		if (answer == JOptionPane.YES_OPTION) {
-			model.setValue(clone, otherEdgeValue);
+			getExtendModel().setValue(clone, otherEdgeValue);
 		} else {
-			SCXMLEdge value = (SCXMLEdge) model.getValue(clone);
+			SCXMLEdge value = (SCXMLEdge) getExtendModel().getValue(clone);
 			value.getSCXMLTargets().clear();
 		}
 	}
@@ -485,7 +486,7 @@ public class SCXMLGraph extends mxGraph {
 			if (!tmp.isEmpty()) {
 				double scale = view.getScale();
 				mxPoint trans = view.getTranslate();
-				clones = model.cloneCells(cells, true);
+				clones = getExtendModel().cloneCells(cells, true);
 
 				for (int i = 0; i < cells.length; i++) {
 					Object newValue = ((SCXMLImportExport) getEditor()
@@ -493,31 +494,31 @@ public class SCXMLGraph extends mxGraph {
 							.cloneValue(((mxCell) clones[i]).getValue());
 					((mxCell) clones[i]).setValue(newValue);
 					if (!allowInvalidEdges
-							&& model.isEdge(clones[i])
+							&& getExtendModel().isEdge(clones[i])
 							&& getEdgeValidationError(clones[i],
-									model.getTerminal(clones[i], true),
-									model.getTerminal(clones[i], false)) != null) {
+									getExtendModel().getTerminal(clones[i], true),
+									getExtendModel().getTerminal(clones[i], false)) != null) {
 						clones[i] = null;
 					} else {
-						mxGeometry g = model.getGeometry(clones[i]);
+						mxGeometry g = getExtendModel().getGeometry(clones[i]);
 
 						if (g != null) {
 							mxCellState state = view.getState(cells[i]);
-							mxCellState pstate = view.getState(model
+							mxCellState pstate = view.getState(getExtendModel()
 									.getParent(cells[i]));
 
 							if (state != null && pstate != null) {
 								double dx = pstate.getOrigin().getX();
 								double dy = pstate.getOrigin().getY();
 
-								if (model.isEdge(clones[i])) {
+								if (getExtendModel().isEdge(clones[i])) {
 									// Checks if the source is cloned or sets
 									// the terminal point
-									Object src = model.getTerminal(cells[i],
+									Object src = getExtendModel().getTerminal(cells[i],
 											true);
 
 									while (src != null && !tmp.contains(src)) {
-										src = model.getParent(src);
+										src = getExtendModel().getParent(src);
 									}
 
 									if (src == null) {
@@ -532,11 +533,11 @@ public class SCXMLGraph extends mxGraph {
 
 									// Checks if the target is cloned or sets
 									// the terminal point
-									Object trg = model.getTerminal(cells[i],
+									Object trg = getExtendModel().getTerminal(cells[i],
 											false);
 
 									while (trg != null && !tmp.contains(trg)) {
-										trg = model.getParent(trg);
+										trg = getExtendModel().getParent(trg);
 									}
 
 									if (trg == null) {
@@ -586,7 +587,7 @@ public class SCXMLGraph extends mxGraph {
 			double scale = view.getScale();
 			mxPoint tr = view.getTranslate();
 
-			model.beginUpdate();
+			getExtendModel().beginUpdate();
 			try {
 				Collection<Object> cellSet = new HashSet<Object>();
 				cellSet.addAll(Arrays.asList(cells));
@@ -597,7 +598,7 @@ public class SCXMLGraph extends mxGraph {
 
 					for (int j = 0; j < edges.length; j++) {
 						if (!cellSet.contains(edges[j])) {
-							mxGeometry geo = model.getGeometry(edges[j]);
+							mxGeometry geo = getExtendModel().getGeometry(edges[j]);
 
 							if (geo != null) {
 								mxCellState state = view.getState(edges[j]);
@@ -613,13 +614,13 @@ public class SCXMLGraph extends mxGraph {
 									geo.setTerminalPoint(new mxPoint(pt.getX()
 											/ scale - tr.getX(), pt.getY()
 											/ scale - tr.getY()), source);
-									model.setTerminal(edges[j], null, source);
-									model.setGeometry(edges[j], geo);
+									getExtendModel().setTerminal(edges[j], null, source);
+									getExtendModel().setGeometry(edges[j], geo);
 								}
 							}
 						}
 					}
-					model.remove(cell);
+					getExtendModel().remove(cell);
 					if (cell.isEdge()) {
 						// check if this edge has a source with other outgoing
 						// edges and
@@ -632,7 +633,7 @@ public class SCXMLGraph extends mxGraph {
 						if (!cellSet.contains(source)
 								&& getOutgoingEdges(source).length > 0) {
 							SCXMLChangeHandler.addStateOfNodeInCurrentEdit(
-									source, model);
+									source, getExtendModel());
 							reOrderOutgoingEdges(source);
 						}
 						// if deleted edge was part of multitarget edge, remove
@@ -653,7 +654,7 @@ public class SCXMLGraph extends mxGraph {
 				fireEvent(new mxEventObject(mxEvent.CELLS_REMOVED, "cells",
 						cells));
 			} finally {
-				model.endUpdate();
+				getExtendModel().endUpdate();
 			}
 		}
 	}
@@ -687,10 +688,10 @@ public class SCXMLGraph extends mxGraph {
 	@Override
 	public Object connectCell(Object edge, Object terminal, boolean source) {
 		// System.out.println("connect cell: edge:"+edge+" terminal:"+terminal+" source:"+source);
-		model.beginUpdate();
+		getExtendModel().beginUpdate();
 		try {
 			SCXMLChangeHandler
-					.addStateOfEdgeInCurrentEdit((mxCell) edge, model);
+					.addStateOfEdgeInCurrentEdit((mxCell) edge, getExtendModel());
 			SCXMLGraphComponent gc = (SCXMLGraphComponent) getEditor()
 					.getGraphComponent();
 			Collection<Object> siblings = gc.getSiblingsOfCell(edge);
@@ -704,8 +705,8 @@ public class SCXMLGraph extends mxGraph {
 					SCXMLEdge newValue = (SCXMLEdge) ((SCXMLImportExport) getEditor()
 							.getCurrentFileIO()).cloneValue(oldValue);
 					((mxCell) edge).setValue(newValue);
-					SCXMLNode targetNodeValue = (SCXMLNode) model
-							.getValue(model.getTerminal(edge, false));
+					SCXMLNode targetNodeValue = (SCXMLNode) getExtendModel()
+							.getValue(getExtendModel().getTerminal(edge, false));
 					oldValue.getSCXMLTargets().remove(targetNodeValue.getID());
 					ArrayList<String> targets = newValue.getSCXMLTargets();
 					targets.clear();
@@ -713,7 +714,7 @@ public class SCXMLGraph extends mxGraph {
 				}
 			}
 			// connect edge to new terminal (source or target)
-			Object previous = model.getTerminal(edge, source);
+			Object previous = getExtendModel().getTerminal(edge, source);
 			cellConnected(edge, terminal, source, null);
 			fireEvent(new mxEventObject(mxEvent.CONNECT_CELL, "edge", edge,
 					"terminal", terminal, "source", source, "previous",
@@ -722,10 +723,10 @@ public class SCXMLGraph extends mxGraph {
 			// from one node to another.
 			if (source) {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(
-						(mxCell) previous, model);
+						(mxCell) previous, getExtendModel());
 				reOrderOutgoingEdges((mxCell) previous);
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(
-						(mxCell) terminal, model);
+						(mxCell) terminal, getExtendModel());
 				reOrderOutgoingEdges((mxCell) terminal);
 			}
 			SCXMLEdge edgeValue = (SCXMLEdge) ((mxCell) edge).getValue();
@@ -738,7 +739,7 @@ public class SCXMLGraph extends mxGraph {
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			model.endUpdate();
+			getExtendModel().endUpdate();
 		}
 
 		return edge;
@@ -788,10 +789,10 @@ public class SCXMLGraph extends mxGraph {
 
 	@Override
 	public String convertValueToString(Object cell) {
-		Object v = model.getValue(cell);
+		Object v = getExtendModel().getValue(cell);
 		if (v instanceof SCXMLNode) {
 			SCXMLNode node = ((SCXMLNode) v);
-			if (!StringUtils.isEmptyString(node.getName()))
+			if (!SCXMLEditorStringUtils.isEmptyString(node.getName()))
 				return node.getID() + "[" + node.getName() + "]";
 			else
 				return node.getID();
@@ -852,7 +853,7 @@ public class SCXMLGraph extends mxGraph {
 			} else if (((mxCell) cell).isVertex()) {
 				SCXMLNode v = (SCXMLNode) ((mxCell) cell).getValue();
 				String src = v.getOutsourcedLocation();
-				if (!StringUtils.isEmptyString(src)) {
+				if (!SCXMLEditorStringUtils.isEmptyString(src)) {
 					tip = "<html>";
 					tip += "src: " + src + "<br>";
 					tip += "type: " + v.getSRC().getType() + "<br>";
@@ -896,91 +897,6 @@ public class SCXMLGraph extends mxGraph {
 		return tip;
 	}
 
-	// public String getToolTipForCell(Object cell)
-	// {
-	// String tip = "<html>";
-	// mxGeometry geo = getModel().getGeometry(cell);
-	// mxCellState state = getView().getState(cell);
-	//
-	// if (getModel().isEdge(cell))
-	// {
-	// tip += "points={";
-	//
-	// if (geo != null)
-	// {
-	// List<mxPoint> points = geo.getPoints();
-	//
-	// if (points != null)
-	// {
-	// Iterator<mxPoint> it = points.iterator();
-	//
-	// while (it.hasNext())
-	// {
-	// mxPoint point = it.next();
-	// tip += "[x=" + numberFormat.format(point.getX())
-	// + ",y=" + numberFormat.format(point.getY())
-	// + "],";
-	// }
-	//
-	// tip = tip.substring(0, tip.length() - 1);
-	// }
-	// }
-	//
-	// tip += "}<br>";
-	// tip += "absPoints={";
-	//
-	// if (state != null)
-	// {
-	//
-	// for (int i = 0; i < state.getAbsolutePointCount(); i++)
-	// {
-	// mxPoint point = state.getAbsolutePoint(i);
-	// tip += "[x=" + numberFormat.format(point.getX())
-	// + ",y=" + numberFormat.format(point.getY())
-	// + "],";
-	// }
-	//
-	// tip = tip.substring(0, tip.length() - 1);
-	// }
-	//
-	// tip += "}";
-	// }
-	// else
-	// {
-	// tip += "geo=[";
-	//
-	// if (geo != null)
-	// {
-	// tip += "x=" + numberFormat.format(geo.getX()) + ",y="
-	// + numberFormat.format(geo.getY()) + ",width="
-	// + numberFormat.format(geo.getWidth()) + ",height="
-	// + numberFormat.format(geo.getHeight());
-	// }
-	//
-	// tip += "]<br>";
-	// tip += "state=[";
-	//
-	// if (state != null)
-	// {
-	// tip += "x=" + numberFormat.format(state.getX()) + ",y="
-	// + numberFormat.format(state.getY()) + ",width="
-	// + numberFormat.format(state.getWidth())
-	// + ",height="
-	// + numberFormat.format(state.getHeight());
-	// }
-	//
-	// tip += "]";
-	// }
-	//
-	// mxPoint trans = getView().getTranslate();
-	//
-	// tip += "<br>scale=" + numberFormat.format(getView().getScale())
-	// + ", translate=[x=" + numberFormat.format(trans.getX())
-	// + ",y=" + numberFormat.format(trans.getY()) + "]";
-	// tip += "</html>";
-	//
-	// return tip;
-	// }
 
 	/**
 	 * Overrides the method to use the currently selected edge template for new

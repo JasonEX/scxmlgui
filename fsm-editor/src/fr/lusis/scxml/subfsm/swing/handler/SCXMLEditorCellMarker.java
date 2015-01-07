@@ -7,14 +7,14 @@ import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.swing.handler.mxCellMarker;
 import com.mxgraph.view.mxCellState;
 
-public class SCXMLCellMarker extends mxCellMarker {
+public class SCXMLEditorCellMarker extends mxCellMarker {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 5748827631837363843L;
 
-	public SCXMLCellMarker(mxGraphComponent graphComponent) {
+	public SCXMLEditorCellMarker(mxGraphComponent graphComponent) {
 		super(graphComponent);
 	}
 

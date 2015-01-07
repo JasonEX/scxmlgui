@@ -1,8 +1,8 @@
-package com.mxgraph.examples.swing.editor.scxml;
-
 // Patch for jgraphx migration
 // Yuqian YANG @ LUSIS
 // 01/06/2015
+
+package com.mxgraph.examples.swing.editor.scxml;
 
 import java.awt.Dialog.ModalityType;
 import java.awt.Window;

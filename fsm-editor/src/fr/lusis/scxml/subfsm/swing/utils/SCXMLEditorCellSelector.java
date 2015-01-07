@@ -16,11 +16,11 @@ import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxGraphView;
 
-import fr.lusis.scxml.subfsm.swing.handler.SCXMLCellMarker;
+import fr.lusis.scxml.subfsm.swing.handler.SCXMLEditorCellMarker;
 
 @SuppressWarnings("rawtypes")
-public class CellSelector {
-	protected HashMap<mxCell, SCXMLCellMarker> currentSelectedCells = new HashMap<mxCell, SCXMLCellMarker>();
+public class SCXMLEditorCellSelector {
+	protected HashMap<mxCell, SCXMLEditorCellMarker> currentSelectedCells = new HashMap<mxCell, SCXMLEditorCellMarker>();
 	protected mxGraphComponent gc;
 	private mxGraph graph;
 	private mxGraphView view;
@@ -28,11 +28,11 @@ public class CellSelector {
 	private boolean withScroll;
 	private boolean selectSetAsValid = true;
 
-	public CellSelector(mxGraphComponent gc) {
+	public SCXMLEditorCellSelector(mxGraphComponent gc) {
 		this(gc, true);
 	}
 
-	public CellSelector(final mxGraphComponent gc, final boolean withScroll) {
+	public SCXMLEditorCellSelector(final mxGraphComponent gc, final boolean withScroll) {
 		this.gc = gc;
 		this.graph = gc.getGraph();
 		this.view = graph.getView();
@@ -50,7 +50,7 @@ public class CellSelector {
 							Object cell = ((mxStyleChange) change).getCell();
 							mxCellState state = view.getState(cell, false);
 							if (currentSelectedCells.containsKey(cell)) {
-								SCXMLCellMarker selector = currentSelectedCells
+								SCXMLEditorCellMarker selector = currentSelectedCells
 										.get(cell);
 								selector.unmark();
 								selector.process(state, selector
@@ -62,7 +62,7 @@ public class CellSelector {
 						}
 					}
 				}
-				for (Entry<mxCell, SCXMLCellMarker> el : currentSelectedCells
+				for (Entry<mxCell, SCXMLEditorCellMarker> el : currentSelectedCells
 						.entrySet()) {
 					el.getValue().unmark();
 					el.getValue().mark();
@@ -78,10 +78,10 @@ public class CellSelector {
 
 	public void selectCell(mxCell c) {
 		if (c != null) {
-			SCXMLCellMarker selector = currentSelectedCells.get(c);
+			SCXMLEditorCellMarker selector = currentSelectedCells.get(c);
 			mxCellState state = view.getState(c);
 			if (selector == null) {
-				selector = new SCXMLCellMarker(gc);
+				selector = new SCXMLEditorCellMarker(gc);
 				currentSelectedCells.put(c, selector);
 				selector.process(state,
 						selector.getMarkerColor(null, state, selectSetAsValid),
@@ -114,7 +114,7 @@ public class CellSelector {
 	}
 
 	public void unselectAll() {
-		for (Entry<mxCell, SCXMLCellMarker> el : currentSelectedCells
+		for (Entry<mxCell, SCXMLEditorCellMarker> el : currentSelectedCells
 				.entrySet()) {
 			el.getValue().unmark();
 		}

@@ -102,7 +102,7 @@ public class SCXMLEdge implements Serializable {
 		try {
 			if (geometries != null) {
 				String geometry = geometries.get(target);
-				if (!StringUtils.isEmptyString(geometry)) {
+				if (!SCXMLEditorStringUtils.isEmptyString(geometry)) {
 					ArrayList<mxPoint> points = new ArrayList<mxPoint>();
 					mxPoint offset = null, point = null;
 					Matcher m = SCXMLImportExport.xyPattern.matcher(geometry);

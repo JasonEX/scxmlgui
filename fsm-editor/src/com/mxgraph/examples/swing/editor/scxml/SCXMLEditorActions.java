@@ -10,7 +10,7 @@
 
 // Patch for jgraphx migration
 // Yuqian YANG @ LUSIS
-// 01/06/2015
+// 01/07/2015
 
 package com.mxgraph.examples.swing.editor.scxml;
 
@@ -45,7 +45,6 @@ import com.mxgraph.examples.swing.editor.scxml.eleditor.SCXMLElementEditor.Type;
 import com.mxgraph.examples.swing.editor.scxml.listener.SCXMLListener;
 import com.mxgraph.examples.swing.editor.scxml.search.SCXMLSearchTool;
 import com.mxgraph.examples.swing.editor.utils.IOUtils;
-import com.mxgraph.layout.mxClusterLayout;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxGraphModel;
@@ -58,10 +57,17 @@ import com.mxgraph.view.mxCellState;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxGraphView;
 
+import fr.lusis.scxml.subfsm.layout.SCXMLEditorClusterLayout;
+import fr.lusis.scxml.subfsm.model.SCXMLEditorIGraphModel;
+import fr.lusis.scxml.subfsm.view.SCXMLEditorCellState;
+import fr.lusis.scxml.subfsm.view.SCXMLEditorGraph;
+
 /**
  * @author Administrator
  * 
  */
+
+@SuppressWarnings("unused")
 public class SCXMLEditorActions {
 
 	/**
@@ -145,9 +151,9 @@ public class SCXMLEditorActions {
 
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
-			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+//			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(source, model);
@@ -177,9 +183,9 @@ public class SCXMLEditorActions {
 		public void actionPerformed(ActionEvent e) {
 			assert (cell.isEdge());
 			SCXMLGraphEditor editor = getEditor(e);
-			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+//			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfEdgeInCurrentEdit(cell, model);
@@ -219,7 +225,7 @@ public class SCXMLEditorActions {
 			mxGeometry cg = cell.getGeometry();
 
 			if (cg.isRelative()) {
-				mxCellState ps = gv.getState(cell.getParent());
+				SCXMLEditorCellState ps = (SCXMLEditorCellState) gv.getState(cell.getParent());
 				pos = ps.relativizePointToThisState(unscaledPos, gv.getScale(),
 						gv.getTranslate());
 			}
@@ -259,7 +265,7 @@ public class SCXMLEditorActions {
 			assert (cell.isEdge());
 			SCXMLGraphEditor editor = getEditor(e);
 			mxGraphComponent gc = editor.getGraphComponent();
-			mxCellState cs = gc.getGraph().getView().getState(cell);
+//			mxCellState cs = gc.getGraph().getView().getState(cell);
 			// List<mxPoint> pts = cs.getAbsolutePoints();
 			mxGeometry cg = cell.getGeometry();
 			List<mxPoint> ptsAlreadyThere = new ArrayList<mxPoint>(
@@ -295,9 +301,9 @@ public class SCXMLEditorActions {
 		public void actionPerformed(ActionEvent e) {
 			assert (cell.isVertex());
 			SCXMLGraphEditor editor = getEditor(e);
-			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+//			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
@@ -327,13 +333,13 @@ public class SCXMLEditorActions {
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
 				n.setInitial(!n.isInitial());
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -357,13 +363,13 @@ public class SCXMLEditorActions {
 			assert (cell.isEdge());
 			SCXMLEdge n = (SCXMLEdge) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfEdgeInCurrentEdit(cell, model);
 				n.setCycleWithTarget(!n.isCycleWithTarget());
-				graph.setCellStyle(n.getStyle(cell), cell);
+				graph.setCellStyle(n.getStyle(cell), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -411,13 +417,13 @@ public class SCXMLEditorActions {
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
 				n.setFinal(!n.isFinal());
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -441,13 +447,13 @@ public class SCXMLEditorActions {
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
 				n.setCluster(!n.isClusterNode());
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -469,13 +475,13 @@ public class SCXMLEditorActions {
 
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
-			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
+//			JFrame frame = (JFrame) SwingUtilities.windowForComponent(editor);
 			SCXMLGraph graph = editor.getGraphComponent().getGraph();
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
@@ -490,7 +496,7 @@ public class SCXMLEditorActions {
 					graph.addToOutsourced(cell);
 				} else
 					graph.removeFromOutsourced(cell);
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -514,13 +520,13 @@ public class SCXMLEditorActions {
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
 				n.setParallel(!n.isParallel());
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -545,8 +551,8 @@ public class SCXMLEditorActions {
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
@@ -559,7 +565,7 @@ public class SCXMLEditorActions {
 				}
 				n.setRestricted(!n.isRestricted(restrictedState),
 						restrictedState);
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -581,12 +587,12 @@ public class SCXMLEditorActions {
 
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
-			mxGraph graph = editor.getGraphComponent().getGraph();
+			SCXMLEditorGraph graph = editor.getGraphComponent().getGraph();
 			assert (cell.isVertex());
 			SCXMLNode n = (SCXMLNode) cell.getValue();
 
-			mxIGraphModel model = editor.getGraphComponent().getGraph()
-					.getModel();
+			SCXMLEditorIGraphModel model = editor.getGraphComponent().getGraph()
+					.getExtendModel();
 			model.beginUpdate();
 			try {
 				SCXMLChangeHandler.addStateOfNodeInCurrentEdit(cell, model);
@@ -601,7 +607,7 @@ public class SCXMLEditorActions {
 					else
 						n.setAsHistory(SCXMLNode.HISTORYTYPE.SHALLOW);
 				}
-				graph.setCellStyle(n.getStyle(), cell);
+				graph.setCellStyle(n.getStyle(), new Object[]{cell});
 			} finally {
 				model.endUpdate();
 			}
@@ -611,7 +617,6 @@ public class SCXMLEditorActions {
 	/**
 	 *
 	 */
-	@SuppressWarnings("serial")
 	public static class SaveAction extends AbstractAction {
 
 		/**
@@ -705,7 +710,6 @@ public class SCXMLEditorActions {
 	/**
 	 *
 	 */
-	@SuppressWarnings("serial")
 	public static class HistoryAction extends AbstractAction {
 		/**
 		 * 
@@ -733,9 +737,9 @@ public class SCXMLEditorActions {
 			if (editor != null) {
 				Collection<Object> modifiedObjects;
 				if (undo) {
-					modifiedObjects = editor.getUndoManager().undo();
+					modifiedObjects = editor.getUndoManager().undoWithReturn();
 				} else {
-					modifiedObjects = editor.getUndoManager().redo();
+					modifiedObjects = editor.getUndoManager().redoWithReturn();
 				}
 
 				editor.updateUndoRedoActionState();
@@ -770,7 +774,7 @@ public class SCXMLEditorActions {
 					editor.getIOPicker().clearFileIO();
 					editor.clearEditorForCellAndType();
 					graph.clearUndeletable();
-					graph.getModel().clearCells();
+					((SCXMLEditorIGraphModel) graph.getModel()).clearCells();
 
 					mxCell root = new mxCell();
 					root.insert(new mxCell());
@@ -809,20 +813,19 @@ public class SCXMLEditorActions {
 	/**
 	 *
 	 */
-	@SuppressWarnings("serial")
 	public static class DoLayoutAction extends AbstractAction {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -2157443282277148507L;
 		mxGraph graph;
-		mxClusterLayout layout;
+		SCXMLEditorClusterLayout layout;
 		mxCell parentToLayout;
 		private int depth;
 
 		public DoLayoutAction(mxGraph g, mxCell p, int depth) {
 			graph = g;
-			layout = new mxClusterLayout(g);
+			layout = new SCXMLEditorClusterLayout(g);
 			parentToLayout = p;
 			this.depth = depth;
 		}
@@ -845,7 +848,6 @@ public class SCXMLEditorActions {
 	/**
 	 *
 	 */
-	@SuppressWarnings("serial")
 	public static class OpenAction extends AbstractAction {
 		/**
 		 * 
@@ -888,7 +890,7 @@ public class SCXMLEditorActions {
 			editor.getIOPicker().clearFileIO();
 			editor.clearEditorForCellAndType();
 			graph.clearUndeletable();
-			graph.getModel().clearCells();
+			((SCXMLEditorIGraphModel) graph.getModel()).clearCells();
 
 			if (inNewWindow) {
 				Thread openingThread = new Thread(new Runnable() {
@@ -932,7 +934,7 @@ public class SCXMLEditorActions {
 					// apply layout to each cluster from the leaves up:
 					if (fc.ignoreStoredLayout()
 							|| SCXMLGraphEditor.isDoLayout()) {
-						mxClusterLayout clusterLayout = new mxClusterLayout(
+						SCXMLEditorClusterLayout clusterLayout = new SCXMLEditorClusterLayout(
 								graph);
 						clusterLayout.execute(graph.getDefaultParent());
 					}
@@ -1020,7 +1022,6 @@ public class SCXMLEditorActions {
 		}
 	}
 
-	@SuppressWarnings("serial")
 	public static class ShowSCXMLListener extends AbstractAction {
 		/**
 		 * 
@@ -1085,7 +1086,7 @@ public class SCXMLEditorActions {
 								SCXMLFileChoser.FileChoserCustomControls.PREFERENCE_IGNORE_STORED_LAYOUT,
 								true)) {
 					// apply layout to each cluster from the leaves up:
-					mxClusterLayout clusterLayout = new mxClusterLayout(graph);
+					SCXMLEditorClusterLayout clusterLayout = new SCXMLEditorClusterLayout(graph);
 					clusterLayout.execute(graph.getDefaultParent());
 				}
 				editor.setDisplayOfOutsourcedContentSelected(false);
@@ -1106,7 +1107,7 @@ public class SCXMLEditorActions {
 		public void actionPerformed(ActionEvent e) {
 			SCXMLGraphEditor editor = getEditor(e);
 			SCXMLGraph graph = editor.getGraphComponent().getGraph();
-			mxIGraphModel model = graph.getModel();
+//			mxIGraphModel model = graph.getModel();
 			try {
 				editor.getUndoManager().setCollectionMode(true);
 				if (editor.isDisplayOfOutsourcedContentSelected()) {
@@ -1121,7 +1122,7 @@ public class SCXMLEditorActions {
 								SCXMLFileChoser.FileChoserCustomControls.PREFERENCE_IGNORE_STORED_LAYOUT,
 								true)) {
 					// apply layout to each cluster from the leaves up:
-					mxClusterLayout clusterLayout = new mxClusterLayout(graph);
+					SCXMLEditorClusterLayout clusterLayout = new SCXMLEditorClusterLayout(graph);
 					clusterLayout.execute(graph.getDefaultParent());
 				}
 				editor.setDisplayOfOutsourcedContentSelected(!editor
@@ -1177,7 +1178,7 @@ public class SCXMLEditorActions {
 				editor.getRestrictedStatesConfig());
 
 		if (doLayout) {
-			mxClusterLayout layout = new mxClusterLayout(graph);
+			SCXMLEditorClusterLayout layout = new SCXMLEditorClusterLayout(graph);
 			layout.execute(graph.getDefaultParent());
 		}
 

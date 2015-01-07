@@ -120,7 +120,8 @@ import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxMultiplicity;
 
-import fr.lusis.scxml.subfsm.utils.StringUtils;
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorUndoManager;
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
 
 public class SCXMLGraphEditor extends JPanel {
 	public Preferences preferences = Preferences.userRoot();
@@ -176,7 +177,7 @@ public class SCXMLGraphEditor extends JPanel {
 	/**
 	 * 
 	 */
-	protected mxUndoManager undoManager;
+	protected SCXMLEditorUndoManager undoManager;
 
 	/**
 	 * 
@@ -378,7 +379,7 @@ public class SCXMLGraphEditor extends JPanel {
 			return null;
 		} else {
 			String internalID = SCXMLn.getInternalID();
-			assert (!StringUtils.isEmptyString(internalID));
+			assert (!SCXMLEditorStringUtils.isEmptyString(internalID));
 			// get the cell corresponding to that node
 			mxCell oc = ie.getCellFromInternalID(internalID);
 			assert (oc != null);
@@ -942,7 +943,7 @@ public class SCXMLGraphEditor extends JPanel {
 					+ now.get(Calendar.HOUR) + "." + now.get(Calendar.MINUTE)
 					+ "." + now.get(Calendar.SECOND);
 			String parentDir = currentFile.getParent();
-			return (StringUtils.isEmptyString(parentDir) ? "" : parentDir
+			return (SCXMLEditorStringUtils.isEmptyString(parentDir) ? "" : parentDir
 					+ File.separatorChar)
 					+ "#" + dateString + "#" + currentFile.getName();
 		} else
@@ -1012,7 +1013,7 @@ public class SCXMLGraphEditor extends JPanel {
 	/**
 	 * 
 	 */
-	public mxUndoManager getUndoManager() {
+	public SCXMLEditorUndoManager getUndoManager() {
 		return undoManager;
 	}
 
@@ -1241,8 +1242,8 @@ public class SCXMLGraphEditor extends JPanel {
 								.get(i);
 						if (el != null) {
 							String warningsForCell = warnings.get(el.getFirst());
-							if (!StringUtils.isEmptyString(warningsForCell)) {
-								warningsForCell = StringUtils
+							if (!SCXMLEditorStringUtils.isEmptyString(warningsForCell)) {
+								warningsForCell = SCXMLEditorStringUtils
 										.cleanupSpaces(warningsForCell);
 								if (!warningsForCell.equals(el.getSecond()))
 									listModel.set(i, new Pair<Object, String>(
@@ -1257,8 +1258,8 @@ public class SCXMLGraphEditor extends JPanel {
 					for (int i = indexToBeRemoved.size() - 1; i >= 0; i--)
 						listModel.removeElementAt(indexToBeRemoved.get(i));
 					for (Entry<Object, String> w : warnings.entrySet()) {
-						String warning = StringUtils.cleanupSpaces(w.getValue());
-						if (!StringUtils.isEmptyString(warning)) {
+						String warning = SCXMLEditorStringUtils.cleanupSpaces(w.getValue());
+						if (!SCXMLEditorStringUtils.isEmptyString(warning)) {
 							System.out.println(warning);
 							listModel.addElement(new Pair<Object, String>(w
 									.getKey(), warning));
@@ -1525,7 +1526,7 @@ public class SCXMLGraphEditor extends JPanel {
 
 	public static String getPresetOutputFormat() {
 		String f = outputFormat, o = getPresetOutput();
-		if (StringUtils.isEmptyString(f) && !StringUtils.isEmptyString(o))
+		if (SCXMLEditorStringUtils.isEmptyString(f) && !SCXMLEditorStringUtils.isEmptyString(o))
 			return o.substring(o.lastIndexOf('.') + 1);
 		return f;
 	}
@@ -1535,8 +1536,8 @@ public class SCXMLGraphEditor extends JPanel {
 	}
 
 	public static boolean isinConvertMode() {
-		return !StringUtils.isEmptyString(getPresetOutput())
-				&& !StringUtils.isEmptyString(getPresetInput());
+		return !SCXMLEditorStringUtils.isEmptyString(getPresetOutput())
+				&& !SCXMLEditorStringUtils.isEmptyString(getPresetInput());
 	}
 
 	/**
@@ -1557,7 +1558,7 @@ public class SCXMLGraphEditor extends JPanel {
 			SCXMLEditorActions.convertNoGUI(editor);
 		} else if (!inHeadlessMode) {
 			String input = getPresetInput();
-			if (!StringUtils.isEmptyString(input)) {
+			if (!SCXMLEditorStringUtils.isEmptyString(input)) {
 				OpenAction open = new OpenAction(new File(input));
 				open.actionPerformed(new ActionEvent(editor, 0, ""));
 			}

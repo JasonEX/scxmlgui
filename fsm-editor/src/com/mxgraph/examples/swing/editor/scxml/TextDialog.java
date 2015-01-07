@@ -1,8 +1,8 @@
-package com.mxgraph.examples.swing.editor.scxml;
-
 // Patch for jgraphx migration
 // Yuqian YANG @ LUSIS
 // 01/06/2015
+
+package com.mxgraph.examples.swing.editor.scxml;
 
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
@@ -22,7 +22,8 @@ import javax.swing.JTextArea;
 
 import com.mxgraph.util.mxResources;
 
-import fr.lusis.scxml.subfsm.utils.StringUtils;
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
+
 
 public class TextDialog extends JDialog implements ActionListener,
 		WindowListener {
@@ -58,8 +59,8 @@ public class TextDialog extends JDialog implements ActionListener,
 
 		// Create the list and put it in a scroll pane.
 		JTextArea textArea = new JTextArea(Math.max(
-				StringUtils.getRows(content), 10), Math.max(
-				StringUtils.getColumns(content), 10));
+				SCXMLEditorStringUtils.getRows(content), 10), Math.max(
+				SCXMLEditorStringUtils.getColumns(content), 10));
 		textArea.setText(content);
 		textArea.setEditable(false);
 		JScrollPane textPane = new JScrollPane(textArea);

@@ -42,7 +42,7 @@ import com.mxgraph.model.mxICell;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxResources;
 
-import fr.lusis.scxml.subfsm.view.SCXMLCellEditorState;
+import fr.lusis.scxml.subfsm.view.SCXMLEditorCellEditorState;
 
 public class SCXMLEditorPopupMenu extends JPopupMenu {
 
@@ -85,7 +85,7 @@ public class SCXMLEditorPopupMenu extends JPopupMenu {
 					}
 					// if the edge is not a loop you can add/remove corners
 					if (c.getSource() != c.getTarget()) {
-						SCXMLCellEditorState cellState = (SCXMLCellEditorState) graph.getView().getState(c);
+						SCXMLEditorCellEditorState cellState = (SCXMLEditorCellEditorState) graph.getView().getState(c);
 						int index;
 						int lastIndex = cellState.getAbsolutePointCount() - 1;
 						if ((index = cellState.getIndexOfEdgePointAt(graphPt.x,

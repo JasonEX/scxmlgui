@@ -57,7 +57,7 @@ import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxResources;
 import com.mxgraph.util.mxUtils;
 
-import fr.lusis.scxml.subfsm.swing.utils.CellSelector;
+import fr.lusis.scxml.subfsm.swing.utils.SCXMLEditorCellSelector;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
 public class SCXMLListener extends JDialog implements ListSelectionListener,
@@ -89,7 +89,7 @@ public class SCXMLListener extends JDialog implements ListSelectionListener,
 	private mxIGraphModel model;
 	private SCXMLGraphEditor editor;
 
-	private CellSelector cellHighlighter;
+	private SCXMLEditorCellSelector cellHighlighter;
 
 	public SCXMLListener(JFrame parent, SCXMLGraphEditor editor) {
 		super(parent, "SCXML Listener");
@@ -99,7 +99,7 @@ public class SCXMLListener extends JDialog implements ListSelectionListener,
 		model = graphComponent.getGraph().getModel();
 		this.editor = editor;
 
-		cellHighlighter = new CellSelector(graphComponent);
+		cellHighlighter = new SCXMLEditorCellSelector(graphComponent);
 
 		addWindowListener(this);
 		JPanel contentPane = new JPanel(new BorderLayout());

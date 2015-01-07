@@ -11,10 +11,10 @@ import javax.swing.event.ListSelectionEvent;
 import com.mxgraph.examples.swing.editor.scxml.SCXMLGraphComponent;
 import com.mxgraph.model.mxCell;
 
-import fr.lusis.scxml.subfsm.swing.utils.CellSelector;
+import fr.lusis.scxml.subfsm.swing.utils.SCXMLEditorCellSelector;
 
 @SuppressWarnings("rawtypes")
-public class ListCellSelector extends CellSelector {
+public class ListCellSelector extends SCXMLEditorCellSelector {
 	private JList list;
 	protected DefaultListModel listModel;
 
