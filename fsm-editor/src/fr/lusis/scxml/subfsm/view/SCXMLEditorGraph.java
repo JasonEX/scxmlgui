@@ -29,19 +29,25 @@ public class SCXMLEditorGraph extends mxGraph {
 	protected SCXMLEditorIGraphModel extendModel;
 
 	public SCXMLEditorGraph() {
-		super();
+		selectionModel = createSelectionModel();
+		setExtendModel(new SCXMLEditorGraphModel());
+		setStylesheet(createStylesheet());
+		setView(createGraphView());
 	}
 
-	public SCXMLEditorGraph(mxIGraphModel model) {
-		super(model);
+	public SCXMLEditorGraph(SCXMLEditorIGraphModel model) {
+		this(model, null);
 	}
 
 	public SCXMLEditorGraph(mxStylesheet stylesheet) {
-		super(stylesheet);
+		this(null, stylesheet);
 	}
 
-	public SCXMLEditorGraph(mxIGraphModel model, mxStylesheet stylesheet) {
-		super(model, stylesheet);
+	public SCXMLEditorGraph(SCXMLEditorIGraphModel model, mxStylesheet stylesheet) {
+		selectionModel = createSelectionModel();
+		setExtendModel((model != null) ? model : new SCXMLEditorGraphModel());
+		setStylesheet((stylesheet != null) ? stylesheet : createStylesheet());
+		setView(createGraphView());
 	}
 	
 	public SCXMLEditorIGraphModel getExtendModel() {
@@ -57,7 +63,8 @@ public class SCXMLEditorGraph extends mxGraph {
 	@Override
 	public void setModel(mxIGraphModel value)
 	{
-		throw new UnsupportedOperationException();
+		if (value != null)
+			throw new UnsupportedOperationException();
 	}
 	
 	public void setModel(SCXMLEditorIGraphModel value)
