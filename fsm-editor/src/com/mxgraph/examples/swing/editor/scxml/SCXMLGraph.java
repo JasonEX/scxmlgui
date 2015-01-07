@@ -384,56 +384,7 @@ public class SCXMLGraph extends fr.lusis.scxml.subfsm.view.SCXMLEditorGraph {
 		}
 	}
 	
-	private Object getTerminalOutsideSet(Object edge, Set<Object> set) {
-		Object source = view.getVisibleTerminal(edge, true);
-		Object target = view.getVisibleTerminal(edge, false);
-		
-		boolean sourceInSet=(source!=null) && (set.contains(source));
-		boolean targetInSet=(target!=null) && (set.contains(target));
-
-		if (!sourceInSet && (source!=null) && (target!=null) && targetInSet)
-			return source;
-		else if (!targetInSet && (source!=null) && (target!=null) && sourceInSet)
-			return target;
-		else return null;
-	}
 	
-	private RootStrength internalVertexShouldBeRoot(Object cell, Object parent,
-			boolean invert) {
-		Object[] conns = getEdges(cell);
-		HashSet<Object> descendants = new HashSet<Object>(Arrays.asList(getChildCells(cell, true, false)));
-		int fanOut = 0;
-		int fanIn = 0;
-
-		for (int j = 0; j < conns.length; j++) {
-			Object src = getTerminalOutsideSet(conns[j], descendants);
-
-			if (((mxCell) conns[j]).getSource() == src) {
-				fanIn++;
-			} else {
-				fanOut++;
-			}
-		}
-		int diff = (invert) ? fanIn - fanOut : fanOut - fanIn;
-
-		return new RootStrength((invert && fanOut == 0)
-				|| (!invert && fanIn == 0), diff);
-	}
-	
-	public RootStrength vertexShouldBeRoot(Object cell, Object parent,
-			boolean invert) {
-		if (cell instanceof mxCell) {
-			mxCell c = (mxCell) cell;
-			Object v = c.getValue();
-			if ((v != null) && (v instanceof SCXMLNode)) {
-				return new RootStrength((invert) ? ((SCXMLNode) v).isFinal()
-						: ((SCXMLNode) v).isInitial(), 0);
-			} else
-				return this.internalVertexShouldBeRoot(cell, parent, invert);
-		} else
-			return this.internalVertexShouldBeRoot(cell, parent, invert);
-	}
-
 	@Override
 	public Object insertEdge(Object parent, String id, Object value,
 			Object source, Object target) {
@@ -580,7 +531,7 @@ public class SCXMLGraph extends fr.lusis.scxml.subfsm.view.SCXMLEditorGraph {
 
 		return clones;
 	}
-
+	
 	@Override
 	public void cellsRemoved(Object[] cells) {
 		if (cells != null && cells.length > 0) {

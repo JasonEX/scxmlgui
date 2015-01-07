@@ -1,5 +1,7 @@
 package fr.lusis.scxml.subfsm.model;
 
+import java.util.Map;
+
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 
@@ -14,4 +16,6 @@ public interface SCXMLEditorIGraphModel extends mxIGraphModel {
 	public Object getNearestCommonAncestor(Object cell1, Object cell2);
 	
 	public void clearCells();
+	
+	Object[] cloneCells(Object[] cells, boolean includeChildren, Map<Object, Object> mapping);
 }

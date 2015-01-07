@@ -1,11 +1,10 @@
-package com.mxgraph.examples.swing;
-
 // Patch for jgraphx migration
 // Yuqian YANG @ LUSIS
-// 01/06/2015
+// 01/07/2015
+
+package com.mxgraph.examples.swing;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
@@ -114,15 +113,17 @@ import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxEventSource.mxIEventListener;
 import com.mxgraph.util.mxRectangle;
 import com.mxgraph.util.mxResources;
-import com.mxgraph.util.mxUndoManager;
 import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxMultiplicity;
 
+import fr.lusis.scxml.subfsm.swing.SCXMLEditorGraphOutline;
+import fr.lusis.scxml.subfsm.utils.SCXMLEditorEvent;
 import fr.lusis.scxml.subfsm.utils.SCXMLEditorUndoManager;
 import fr.lusis.scxml.subfsm.utils.SCXMLEditorStringUtils;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class SCXMLGraphEditor extends JPanel {
 	public Preferences preferences = Preferences.userRoot();
 	private ValidationWarningStatusPane validationStatus;
@@ -169,7 +170,7 @@ public class SCXMLGraphEditor extends JPanel {
 	/**
 	 * a summary view of the entire graph
 	 */
-	protected mxGraphOutline graphOutline;
+	protected SCXMLEditorGraphOutline graphOutline;
 
 	private SCXMLListener scxmlListener;
 	private SCXMLSearchTool scxmlSearchtool;
@@ -408,16 +409,13 @@ public class SCXMLGraphEditor extends JPanel {
 			if (display) {
 				// attach copy of oc as only children of ond
 				v.setCluster(true);
-				rootg.setCellStyle(v.getStyle(), ond);
+				rootg.setCellStyle(v.getStyle(), new Object[]{ond});
 				HashMap<Object, Object> original2clone = new HashMap<Object, Object>();
-				Object[] noc = g.cloneCells(new Object[] { oc }, false,
-						original2clone);
+				Object[] noc = g.cloneCells(new Object[] { oc }, false, original2clone);
 
 				// loop through the mapping now created while cloning, if there
-				// are
-				// any cells that are outsourced add this clone to the list of
-				// clones
-				// for them in the graph ig.
+				// are any cells that are outsourced add this clone to the list of
+				// clones for them in the graph ig.
 				for (mxCell c : ig.getOutsourcedNodes()) {
 					mxCell clone = (mxCell) original2clone.get(c);
 					if (clone != null) {
@@ -447,7 +445,7 @@ public class SCXMLGraphEditor extends JPanel {
 				}
 			} else {
 				v.setCluster(false);
-				rootg.setCellStyle(v.getStyle(), ond);
+				rootg.setCellStyle(v.getStyle(), new Object[]{ond});
 			}
 			return ig;
 		}
@@ -550,7 +548,7 @@ public class SCXMLGraphEditor extends JPanel {
 		// Stores a reference to the graph and creates the command history
 		graphComponent = component;
 		final SCXMLGraph graph = graphComponent.getGraph();
-		undoManager = new mxUndoManager(100);
+		undoManager = new SCXMLEditorUndoManager(100);
 
 		// Updates the modified flag if the graph model changes
 		graph.getModel().addListener(mxEvent.CHANGE, changeTracker);
@@ -1201,6 +1199,11 @@ public class SCXMLGraphEditor extends JPanel {
 		}
 
 		class WarningRenderer extends JTextArea implements ListCellRenderer {
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 8637834764324869811L;
+
 			public Component getListCellRendererComponent(JList list,
 					Object value, // value to display
 					int index, // cell index
@@ -1285,7 +1288,7 @@ public class SCXMLGraphEditor extends JPanel {
 		// TODO: create menu bar
 
 		// Creates the graph outline component
-		graphOutline = new mxGraphOutline(graphComponent, 200, 200);
+		graphOutline = new SCXMLEditorGraphOutline(graphComponent, 200, 200);
 
 		JPanel inner = new JPanel();
 		inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
@@ -1320,7 +1323,7 @@ public class SCXMLGraphEditor extends JPanel {
 		// Installs automatic validation (use editor.validation = true
 		// if you are using an mxEditor instance)
 		graphComponent.getGraph().getModel()
-				.addListener(mxEvent.VALIDATION_DONE, new mxIEventListener() {
+				.addListener(SCXMLEditorEvent.VALIDATION_DONE, new mxIEventListener() {
 					public void invoke(Object sender, mxEventObject evt) {
 						HashMap<Object, String> warnings = (HashMap<Object, String>) evt
 								.getProperty("warnings");
@@ -1330,7 +1333,7 @@ public class SCXMLGraphEditor extends JPanel {
 		graphComponent
 				.getGraph()
 				.getModel()
-				.addListener(mxEvent.VALIDATION_PRE_START,
+				.addListener(SCXMLEditorEvent.VALIDATION_PRE_START,
 						new mxIEventListener() {
 							public void invoke(Object sender, mxEventObject evt) {
 								graphComponent.clearSCXMLNodes();
@@ -1476,7 +1479,7 @@ public class SCXMLGraphEditor extends JPanel {
 			if (!noGUI)
 				UIManager.setLookAndFeel(UIManager
 						.getSystemLookAndFeelClassName());
-			mxConstants.SHADOW_COLOR = Color.LIGHT_GRAY;
+			mxConstants.W3C_SHADOWCOLOR = "lightgray";
 			SCXMLGraphComponent gc = new SCXMLGraphComponent(new SCXMLGraph());
 			SCXMLGraphEditor editor = new SCXMLGraphEditor("FSM Editor", gc);
 			if (!noGUI)

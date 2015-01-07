@@ -1,5 +1,8 @@
 package fr.lusis.scxml.subfsm.model;
 
+import java.util.Hashtable;
+import java.util.Map;
+
 import com.mxgraph.model.mxGraphModel;
 import com.mxgraph.model.mxIGraphModel;
 import com.mxgraph.util.mxEvent;
@@ -100,6 +103,27 @@ public class SCXMLEditorGraphModel extends mxGraphModel implements SCXMLEditorIG
 		currentEdit.add(change);
 		fireEvent(new mxEventObject(mxEvent.EXECUTE, "change", change));
 		endUpdate(false);
+	}
+	
+	public Object[] cloneCells(Object[] cells, boolean includeChildren,
+			Map<Object, Object> mapping) {
+		if (mapping == null)
+			mapping = new Hashtable<Object, Object>();
+		Object[] clones = new Object[cells.length];
+
+		for (int i = 0; i < cells.length; i++) {
+			try {
+				clones[i] = cloneCell(cells[i], mapping, includeChildren);
+			} catch (CloneNotSupportedException e) {
+				// ignore
+			}
+		}
+
+		for (int i = 0; i < cells.length; i++) {
+			restoreClone(clones[i], cells[i], mapping);
+		}
+
+		return clones;
 	}
 
 }

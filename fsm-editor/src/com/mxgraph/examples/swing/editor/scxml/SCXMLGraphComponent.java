@@ -5,12 +5,17 @@
 package com.mxgraph.examples.swing.editor.scxml;
 
 import java.awt.Color;
+import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.concurrent.Semaphore;
 
+import javax.swing.BoundedRangeModel;
+import javax.swing.JScrollBar;
+import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 
 import org.w3c.dom.Document;
@@ -30,6 +35,7 @@ import com.mxgraph.swing.handler.mxGraphHandler;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxPoint;
 import com.mxgraph.util.mxUtils;
+import com.mxgraph.validation.Validator;
 import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxGraphView;
 
@@ -46,6 +52,14 @@ public class SCXMLGraphComponent extends mxGraphComponent
 	 * 
 	 */
 	private static final long serialVersionUID = -6833603133512882012L;
+	
+	protected SCXMLEditorGraphControl extendGraphControl; 
+
+	private Validator validator = null;
+
+	private Semaphore zoomInProgress = new Semaphore(1);
+	
+	private boolean repaintEnabled = true;
 
 	/**
 	 * 
@@ -153,6 +167,14 @@ public class SCXMLGraphComponent extends mxGraphComponent
 		
 		return super.validateGraph();
 	}
+	
+	public void setValidator(Validator v) {
+		validator = v;
+	}
+
+	public Validator getValidator() {
+		return validator;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -215,5 +237,142 @@ public class SCXMLGraphComponent extends mxGraphComponent
 		int dy = getVerticalScrollBar().getValue();
 		return new Point(dx + mouse.x, dy + mouse.y);
 	}
+	
+//	public void zoomIn(Point centerPoint) {
+//		zoom(zoomFactor, centerPoint);
+//	}
+//
+//	public void zoomOut(Point centerPoint) {
+//		zoomTO(1 / zoomFactor, centerPoint);
+//	}
+	
+	protected int computeDeltaForZoomCenterScroolbar(int v, double factor,
+			int centerPos, double extentRatio) {
+		return (int) Math.round((centerPos - v) * (factor - extentRatio));
+	}
 
+	protected void maintainScrollBar(boolean horizontal, final int oldValue,
+			double factor, boolean center) {
+		maintainScrollBar(horizontal, oldValue, factor, center, null);
+	}
+
+	protected void maintainScrollBar(boolean horizontal, final int oldValue,
+			final double factor, boolean center, Point centerPoint) {
+		JScrollBar scrollBar = (horizontal) ? getHorizontalScrollBar()
+				: getVerticalScrollBar();
+		final int pos;
+
+		if (scrollBar != null) {
+			final BoundedRangeModel model = scrollBar.getModel();
+			final int ex = model.getExtent();
+			if (centerPoint != null) {
+				pos = (int) Math.round((horizontal) ? centerPoint.getX()
+						: centerPoint.getY());
+			} else {
+				if (center) {
+					pos = oldValue + Math.round((model.getExtent() / 2));
+				} else {
+					pos = oldValue;
+				}
+			}
+
+			// System.out.println("v="+v+" ex="+ex+" pos="+pos+" f="+factor+" nex="+model.getExtent());
+			final int newValue = (int) Math.round((double) oldValue * factor)
+					+ computeDeltaForZoomCenterScroolbar(oldValue, factor, pos,
+							(double) model.getExtent() / (double) ex);
+			// System.out.println("nv="+newValue+" delta="+computeDeltaForZoomCenterScroolbar(v,factor,pos,(double)model.getExtent()/(double)ex));
+			model.setValue(newValue);
+
+			// model.setRangeProperties(newValue,model.getExtent(),0,(int)Math.round(model.getMaximum()*factor),true);
+		}
+	}
+
+	public void zoom(final double factor, final Point centerPoint) {
+		if (zoomInProgress.tryAcquire()) {
+			mxGraphView view = graph.getView();
+			double newScale;
+			if (factor > 1)
+				newScale = (double) (Math.ceil(view.getScale() * 100 * factor)) / 100;
+			else
+				newScale = (double) (Math.floor(view.getScale() * 100 * factor)) / 100;
+			if (newScale != view.getScale() && newScale > 0.01) {
+				mxPoint translate = (pageVisible && centerPage) ? getPageTranslate(newScale)
+						: new mxPoint(0, 0);
+
+				final int oldHorizontalValue = getHorizontalScrollBar()
+						.getModel().getValue();
+				final int oldVerticalValue = getVerticalScrollBar().getModel()
+						.getValue();
+
+				repaintEnabled = false;
+				graph.getView().scaleAndTranslate(newScale, translate.getX(),
+						translate.getY());
+
+				if (keepSelectionVisibleOnZoom && !graph.isSelectionEmpty()) {
+					getGraphControl().scrollRectToVisible(
+							view.getBoundingBox(graph.getSelectionCells())
+									.getRectangle());
+					zoomInProgress.release();
+				} else {
+					SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							maintainScrollBar(true, oldHorizontalValue, factor,
+									centerZoom, centerPoint);
+							maintainScrollBar(false, oldVerticalValue, factor,
+									centerZoom, centerPoint);
+							repaintEnabled = true;
+							graphControl.repaint();
+							zoomInProgress.release();
+						}
+					});
+				}
+			} else {
+				zoomInProgress.release();
+			}
+		}
+	}
+	
+	public void zoomIn(Point centerPoint) {
+		zoom(zoomFactor, centerPoint);
+	}
+
+	public void zoomOut(Point centerPoint) {
+		zoom(1 / zoomFactor, centerPoint);
+	}
+	
+	/**
+	 * Creates the inner control that handles tooltips, preferred size and can
+	 * draw cells onto a canvas.
+	 */
+	protected SCXMLEditorGraphControl createGraphControl()
+	{
+		return new SCXMLEditorGraphControl();
+	}
+
+	/**
+	 * 
+	 * @return Returns the control that renders the graph.
+	 */
+	public SCXMLEditorGraphControl getGraphControl()
+	{
+		return extendGraphControl;
+	}
+
+	public class SCXMLEditorGraphControl extends mxGraphControl {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6264909868916126272L;
+
+		public SCXMLEditorGraphControl() {
+			super();
+		}
+		
+		@Override
+		public void paintComponent(Graphics g) {
+			if (repaintEnabled) {
+				super.paintComponent(g);
+			}
+		}
+	}
 }
