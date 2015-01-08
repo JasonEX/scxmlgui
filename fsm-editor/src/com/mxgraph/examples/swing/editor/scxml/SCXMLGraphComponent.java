@@ -67,7 +67,7 @@ public class SCXMLGraphComponent extends mxGraphComponent
 	 */
 	public SCXMLGraphComponent(mxGraph graph) {
 		super(graph);
-
+		
 		setWheelScrollingEnabled(false);
 
 		// addComponentListener(this);
@@ -89,6 +89,8 @@ public class SCXMLGraphComponent extends mxGraphComponent
 		// Sets the background to white
 		getViewport().setOpaque(false);
 		setBackground(Color.WHITE);
+		
+		setValidator(new Validator(this));
 	}
 
 	@Override
@@ -355,6 +357,8 @@ public class SCXMLGraphComponent extends mxGraphComponent
 	 */
 	public SCXMLEditorGraphControl getGraphControl()
 	{
+		if (extendGraphControl == null)
+			extendGraphControl = new SCXMLEditorGraphControl();
 		return extendGraphControl;
 	}
 

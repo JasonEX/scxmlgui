@@ -22,7 +22,7 @@ public class SCXMLEditorGraphModel extends mxGraphModel implements SCXMLEditorIG
 	public SCXMLEditorGraphModel() {
 		super();
 	}
-
+	
 	public SCXMLEditorGraphModel(Object root) {
 		super(root);
 	}

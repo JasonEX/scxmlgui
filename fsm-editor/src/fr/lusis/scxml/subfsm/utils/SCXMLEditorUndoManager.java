@@ -10,6 +10,7 @@ import com.mxgraph.model.mxGraphModel.mxChildChange;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxUndoManager;
+import com.mxgraph.util.mxUndoableEdit;
 import com.mxgraph.util.mxUndoableEdit.mxUndoableChange;
 
 public class SCXMLEditorUndoManager extends mxUndoManager {
@@ -202,4 +203,14 @@ public class SCXMLEditorUndoManager extends mxUndoManager {
 		// System.out.println("check= "+indexOfNextAdd+" "+unmodifiedPosition);
 		return (!notUndoableEdits && (indexOfNextAdd == unmodifiedPosition));
 	}
+	
+	@Override
+	public void undoableEditHappened(mxUndoableEdit undoableEdit)
+	{
+		if (undoableEdit instanceof SCXMLEditorUndoableEdit)
+			undoableEditHappened((SCXMLEditorUndoableEdit) undoableEdit);
+		else
+			System.out.println("Error call from SCXMLEditorUndoableManager.undoableEditHappened(mxUndoableEdit)");
+	}
+	
 }

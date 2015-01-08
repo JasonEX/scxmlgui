@@ -186,9 +186,7 @@ public class SCXMLEditorMenuBar extends JMenuBar {
 						+ "Institute for Creative Technologies\n"
 						+ "University of Southern California\n\n"
 						+ "Contributions by:\n"
-						+ "Társi Róbert, Alerant Zrt (Hungary)\n\n"
-						+ "Modified version for sub-FSM, for internal use\n"
-						+ "Yuqian YANG, LUSIS, FR";
+						+ "Társi Róbert, Alerant Zrt (Hungary)\n\n";
 				try {
 					info = mxUtils.readFile("info.txt");
 					svn = mxUtils.readFile("svn.version");
@@ -197,7 +195,8 @@ public class SCXMLEditorMenuBar extends JMenuBar {
 				}
 				parent = SwingUtilities.windowForComponent(editor);
 				TextDialog a = new TextDialog(parent, "About",
-						info + "\n" + svn + "\n\n" + "https://github.com/JasonEX/scxmlgui/tree/sub-FSM",
+						info + "\n" + svn + "\n" + "Modified version for sub-FSM, for internal use\n"
+						+ "Yuqian YANG, LUSIS, FR"+ "\n\n" + "https://github.com/JasonEX/scxmlgui/tree/sub-FSM",
 						ModalityType.TOOLKIT_MODAL);
 				a.setResizable(false);
 			}

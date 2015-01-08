@@ -57,14 +57,32 @@ public class SCXMLEditorGraph extends mxGraph {
 
 	@Override
 	public mxIGraphModel getModel() {
+		if (extendModel == null)
+//			return model;
+			setExtendModel(new SCXMLEditorGraphModel());
 		return getExtendModel();
 	}
 	
 	@Override
 	public void setModel(mxIGraphModel value)
 	{
-		if (value != null)
-			throw new UnsupportedOperationException();
+		System.out.println("Try use SCXMLEditorGraph.setModel method");
+		if (model != null)
+		{
+			model.removeListener(graphModelChangeHandler);
+		}
+
+		Object oldModel = model;
+		model = value;
+
+		if (view != null)
+		{
+			view.revalidate();
+		}
+
+		model.addListener(mxEvent.CHANGE, graphModelChangeHandler);
+		changeSupport.firePropertyChange("model", oldModel, model);
+		repaint();
 	}
 	
 	public void setModel(SCXMLEditorIGraphModel value)
@@ -89,6 +107,7 @@ public class SCXMLEditorGraph extends mxGraph {
 
 		extendModel.addListener(mxEvent.CHANGE, graphModelChangeHandler);
 		changeSupport.firePropertyChange("model", oldModel, extendModel);
+		model = extendModel;
 		repaint();
 	}
 	
